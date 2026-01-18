@@ -41,8 +41,8 @@ tauri.key.pub
 
 # --- Updater Config ---
 # File này chứa link tải, nếu bạn muốn quản lý thủ công thì ignore
-latest.json
-.latest.json
+# latest.json
+# .latest.json
 
 # --- OS & Editor System Files ---
 .DS_Store
