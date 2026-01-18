@@ -1163,17 +1163,32 @@ export const Dashboard = () => {
   // return INITIAL_APPS;
   const LAYOUT_VERSION = "2.0";
   const [apps, setApps] = useState<DashboardApp[]>(() => {
-    const savedOrder = localStorage.getItem("dashboard_app_order");
-    const savedVersion = localStorage.getItem("layout_version");
+    try {
+      const savedData = localStorage.getItem("dashboard_app_order");
+      const savedVersion = localStorage.getItem("layout_version");
 
-    if (savedOrder && savedVersion === LAYOUT_VERSION) {
-      // Ép kiểu JSON.parse về DashboardApp[]
-      return JSON.parse(savedOrder) as DashboardApp[];
+      // Nếu có data cũ và đúng version
+      if (savedData && savedVersion === LAYOUT_VERSION) {
+        // Parse ra mảng các object (đang bị thiếu icon)
+        const parsedApps = JSON.parse(savedData) as DashboardApp[];
+
+        // --- BƯỚC KHÔI PHỤC ICON (QUAN TRỌNG) ---
+        // Duyệt qua danh sách cũ, lấy ID và tìm lại Icon gốc trong INITIAL_APPS
+        const restoredApps = parsedApps.map((savedApp) => {
+          const originalApp = INITIAL_APPS.find((a) => a.id === savedApp.id);
+          if (originalApp) {
+            return { ...savedApp, icon: originalApp.icon }; // Gắn lại Icon xịn vào
+          }
+          return savedApp;
+        });
+
+        return restoredApps;
+      }
+    } catch (e) {
+      console.error("Lỗi load cache dashboard:", e);
     }
 
-    localStorage.removeItem("dashboard_app_order");
-    localStorage.setItem("layout_version", LAYOUT_VERSION);
-
+    // Nếu không có cache hoặc lỗi, dùng mặc định
     return INITIAL_APPS;
   });
 
@@ -1736,7 +1751,21 @@ export const Dashboard = () => {
                     <div
                       className={`w-10 h-10 rounded-lg flex items-center justify-center border mb-2 transition-transform group-hover:scale-110 pointer-events-none ${app.color}`}
                     >
-                      <app.icon size={20} strokeWidth={2} />
+                      {app.icon ? (
+                        <app.icon size={20} strokeWidth={2} />
+                      ) : (
+                        <span
+                          title={`Lỗi Icon: ${app.id}`}
+                          className="text-red-500 font-bold text-xs"
+                        >
+                          ?
+                          {/* CÁCH FIX: Dùng hàm tự chạy để log xong trả về null */}
+                          {(() => {
+                            console.error(`MISSING ICON FOR APP: ${app.label}`);
+                            return null;
+                          })()}
+                        </span>
+                      )}
                     </div>
                     <div className="text-center w-full pointer-events-none">
                       <div className="text-xs font-bold text-slate-700 dark:text-slate-100 mb-0.5">
