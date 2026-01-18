@@ -32,6 +32,7 @@
     "shell:allow-open",
     "shell:allow-spawn",
     "dialog:default",
+    "updater:default",
     {
       "identifier": "fs:scope",
       "allow": [

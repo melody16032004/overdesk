@@ -96,6 +96,8 @@ import {
 } from "lucide-react";
 import { getVersion } from "@tauri-apps/api/app";
 import { invoke } from "@tauri-apps/api/core";
+import { check } from "@tauri-apps/plugin-updater";
+import { relaunch } from "@tauri-apps/plugin-process";
 
 // --- DATA CONFIG ---
 const APP_INFO = {
@@ -481,14 +483,53 @@ export const AboutModule = () => {
     if (devModeCount + 1 === 5) setIsDevMode(true);
   };
 
-  const handleCheckUpdate = () => {
+  const handleCheckUpdate = async () => {
+    if (checking) return; // Tránh bấm nhiều lần
     setChecking(true);
-    setUpdateMsg("Contacting server...");
-    setTimeout(() => {
-      setChecking(false);
-      setUpdateMsg("You're on the latest build.");
+    setUpdateMsg("Checking for updates...");
+
+    try {
+      const update = await check();
+
+      if (update) {
+        setUpdateMsg(`Found v${update.version}! Downloading...`);
+
+        let downloaded = 0;
+        let total = 0;
+
+        await update.downloadAndInstall((event) => {
+          switch (event.event) {
+            case "Started":
+              total = event.data.contentLength || 0;
+              break;
+            case "Progress":
+              downloaded += event.data.chunkLength;
+              if (total > 0) {
+                // Update phần trăm tải (nếu muốn hiển thị chi tiết hơn)
+                setUpdateMsg(
+                  `Downloading: ${Math.round((downloaded / total) * 100)}%`,
+                );
+              }
+              break;
+            case "Finished":
+              setUpdateMsg("Installing...");
+              break;
+          }
+        });
+
+        setUpdateMsg("Done! Restarting...");
+        await relaunch();
+      } else {
+        setUpdateMsg("You're on the latest build.");
+        setTimeout(() => setUpdateMsg(""), 3000);
+      }
+    } catch (error) {
+      console.error(error);
+      setUpdateMsg("Update failed. See console.");
       setTimeout(() => setUpdateMsg(""), 3000);
-    }, 2000);
+    } finally {
+      setChecking(false);
+    }
   };
 
   const copyVersion = () => {
@@ -599,14 +640,22 @@ export const AboutModule = () => {
                 </button>
                 <button
                   onClick={handleCheckUpdate}
-                  disabled={checking}
-                  className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs transition-all ${checking ? "bg-slate-500/20 text-slate-400 cursor-wait" : "bg-blue-600 hover:bg-blue-500 text-white shadow-lg active:scale-95"}`}
+                  disabled={checking} // Disable khi đang chạy
+                  className={`
+                    flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs transition-all 
+                    ${
+                      checking
+                        ? "bg-slate-500/20 text-slate-400 cursor-wait"
+                        : "bg-blue-600 hover:bg-blue-500 text-white shadow-lg active:scale-95"
+                    }
+                  `}
                 >
                   <RefreshCw
                     size={16}
                     className={checking ? "animate-spin" : ""}
                   />{" "}
-                  {checking ? "Checking..." : "Update"}
+                  {/* Hiển thị text theo trạng thái */}
+                  {checking ? "Processing..." : "Check Update"}
                 </button>
               </div>
             </div>
