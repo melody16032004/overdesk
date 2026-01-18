@@ -24,7 +24,8 @@
         "shadow": true,
         "center": true,
         "alwaysOnTop": true,
-        "visible": true
+        "visible": true,
+        "devtools": true
       }
     ],
     "security": {
