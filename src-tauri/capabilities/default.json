@@ -1,0 +1,80 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Capability for the main window",
+  "windows": ["*"],
+  "permissions": [
+    "core:default",
+    "global-shortcut:allow-register",
+    "global-shortcut:allow-is-registered",
+    "global-shortcut:allow-unregister",
+    "core:window:allow-start-dragging",
+    "core:window:allow-minimize",
+    "core:window:allow-maximize",
+    "core:window:allow-set-fullscreen",
+    "core:window:allow-hide",
+    "core:window:allow-set-size",
+    "core:window:allow-set-position",
+    "core:window:allow-create",
+    "core:window:allow-show",
+    "core:window:allow-center",
+    "core:window:allow-set-focus",
+    "core:webview:allow-create-webview-window",
+    "opener:default",
+    "fs:default",
+    "fs:allow-mkdir",
+    "fs:allow-read-text-file",
+    "fs:allow-write-text-file",
+    "fs:allow-read-file",
+    "fs:allow-write-file",
+    "fs:allow-exists",
+    "shell:default",
+    "shell:allow-open",
+    "shell:allow-spawn",
+    "dialog:default",
+    {
+      "identifier": "fs:scope",
+      "allow": [
+        "$HOME/**",
+        "C:\\**",
+        "C:\\Users\\PC\\**",
+        "D:\\**",
+        "$DOWNLOAD/**",
+        "$DOCUMENT/**",
+        "$DESKTOP/**",
+        "./**"
+      ]
+    },
+    {
+      "identifier": "http:default",
+      "allow": [
+        { "url": "https://file.io" },
+        { "url": "https://file.io/*" },
+        { "url": "https://tmpfiles.org" },
+        { "url": "https://tmpfiles.org/*" },
+        { "url": "https://api.cloudinary.com" },
+        { "url": "https://api.cloudinary.com/*" }
+      ],
+      "deny": []
+    },
+    {
+      "identifier": "shell:allow-execute",
+      "allow": [
+        {
+          "name": "cloudflared",
+          "args": true,
+          "sidecar": true
+        },
+        {
+          "name": "open-powershell",
+          "cmd": "cmd",
+          "args": true
+        }
+      ]
+    },
+    {
+      "identifier": "fs:scope",
+      "allow": ["$APPDATA/**", "$DOWNLOAD/**"]
+    }
+  ]
+}

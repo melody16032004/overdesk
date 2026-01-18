@@ -1,0 +1,102 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  font-family: system-ui, sans-serif;
+  user-select: none;
+  cursor: default;
+}
+
+/* THÊM DÒNG NÀY: Ép tất cả các lớp cha phải to bằng cửa sổ */
+html,
+body,
+#root {
+  height: 100%;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  background-color: transparent;
+  overflow: hidden;
+}
+
+/* --- CUSTOM SCROLLBAR --- */
+@layer base {
+  /* Dành cho Firefox */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: #cbd5e1 transparent; /* Light mode color */
+  }
+
+  /* Dark mode cho Firefox */
+  .dark * {
+    scrollbar-color: #334155 transparent; /* Dark mode color */
+  }
+
+  /* Dành cho Chrome, Edge, Safari, Tauri (WebKit) */
+  ::-webkit-scrollbar {
+    width: 6px; /* Chiều rộng thanh dọc */
+    height: 6px; /* Chiều cao thanh ngang */
+  }
+
+  /* Phần rãnh (Track) - Để trong suốt cho hiện đại */
+  ::-webkit-scrollbar-track {
+    background: transparent;
+    margin: 4px;
+  }
+
+  /* Phần tay kéo (Thumb) */
+  ::-webkit-scrollbar-thumb {
+    background-color: #cbd5e1; /* Màu xám nhạt (Light mode) */
+    border-radius: 20px; /* Bo tròn */
+    border: 2px solid transparent; /* Mẹo để tạo khoảng cách với lề */
+    background-clip: content-box; /* Giúp border trong suốt hoạt động */
+  }
+
+  /* Khi hover vào thanh cuộn */
+  ::-webkit-scrollbar-thumb:hover {
+    background-color: #94a3b8; /* Đậm hơn chút khi hover */
+  }
+
+  /* --- DARK MODE CONFIG --- */
+
+  /* Màu tay kéo khi ở chế độ tối */
+  .dark ::-webkit-scrollbar-thumb {
+    background-color: #334155; /* Slate-700 */
+  }
+
+  .dark ::-webkit-scrollbar-thumb:hover {
+    background-color: #475569; /* Slate-600 */
+  }
+}
+
+/* --- TIỆN ÍCH --- */
+/* Class để ẩn scrollbar nhưng vẫn cuộn được (nếu cần dùng chỗ nào đó) */
+@layer utilities {
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}
+
+/* --- FIX LỖI MÀU CHỮ FORTUNESHEET --- */
+
+/* 1. Ép màu chữ mặc định trong ô tính là ĐEN */
+.fortune-sheet-container .fortune-content .fortune-sheet-cell {
+  color: #000000 !important;
+}
+
+/* 2. Ép nền của toàn bộ bảng tính là TRẮNG */
+.fortune-sheet-container {
+  background-color: #ffffff !important;
+  color: #333333 !important; /* Màu chữ toolbar */
+}
+
+/* 3. Fix lỗi input khi sửa ô bị trong suốt/trắng */
+.fortune-input-box {
+  color: #000000 !important;
+  background-color: #ffffff !important;
+}

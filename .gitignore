@@ -1,0 +1,58 @@
+# --- Logs & Diagnostics ---
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# --- Dependencies ---
+node_modules
+
+# --- Build Output (Frontend) ---
+dist
+dist-ssr
+
+# --- Environment Variables (CỰC KỲ QUAN TRỌNG) ---
+# Chứa mật khẩu và key, tuyệt đối không bỏ comment dòng này
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# --- Tauri / Rust Build Output (RẤT NẶNG) ---
+# Thư mục này chứa file exe và các file trung gian của Rust (nặng vài GB)
+src-tauri/target/
+# Thư mục code sinh ra tự động
+src-tauri/gen/
+
+# --- Security & Signing Keys (NHẠY CẢM) ---
+# Chặn tất cả các file key để tránh lộ Private Key
+*.key
+*.key.pub
+# Chặn file chữ ký số (tùy chọn, nhưng nên chặn để repo sạch)
+*.sig
+
+# Cụ thể cho file bạn vừa tạo
+tauri.key
+tauri.key.pub
+
+# --- Updater Config ---
+# File này chứa link tải, nếu bạn muốn quản lý thủ công thì ignore
+latest.json
+.latest.json
+
+# --- OS & Editor System Files ---
+.DS_Store
+Thumbs.db
+.idea
+.vscode/*
+!.vscode/extensions.json
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+*.local

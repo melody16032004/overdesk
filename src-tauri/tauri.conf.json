@@ -1,0 +1,65 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Overdesk",
+  "version": "2.0.2",
+  "identifier": "com.overdesk.app",
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "devUrl": "http://localhost:1420",
+    "beforeBuildCommand": "npm run build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "OverDesk",
+        "width": 400,
+        "height": 600,
+        "minWidth": 320,
+        "minHeight": 450,
+        "resizable": true,
+        "decorations": false,
+        "transparent": true,
+        "shadow": true,
+        "center": true,
+        "alwaysOnTop": true,
+        "visible": true
+      }
+    ],
+    "security": {
+      "csp": null,
+      "capabilities": ["default"]
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "createUpdaterArtifacts": true,
+    "externalBin": ["cloudflared"],
+    "copyright": "Copyright © 2025 Overdesk Team",
+    "shortDescription": "Your ultimate desktop productivity companion.",
+    "longDescription": "Overdesk is a lightweight, all-in-one desktop widget featuring a Calculator, Translator (OCR), Maps, To-Do List, and Focus Timer.",
+    "resources": []
+  },
+  "plugins": {
+    "shell": {
+      "open": true
+    },
+    "updater": {
+      "active": true,
+      "endpoints": [
+        "https://gist.githubusercontent.com/TrungHoang/..../raw/latest.json"
+      ],
+      "dialog": false,
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDRGMDRDMzkyN0M3Q0IwREUKUldUZXNIeDhrc01FVCt1R1pZZnNFb0ExNnFDRTA2ZEpsanUva0ZWbjhxODFTdWZaMi9DdmtYekkK"
+    }
+  }
+}
