@@ -56,7 +56,7 @@
     "updater": {
       "active": true,
       "endpoints": [
-        "https://gist.githubusercontent.com/TrungHoang/..../raw/latest.json"
+        "https://gist.githubusercontent.com/melody16032004/aeae8cf7967d88faf4dbdba4ac41da8c/raw/495969778f86c0329d9b427b5c81105ce07c9c89/gistfile1.txt"
       ],
       "dialog": false,
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDRGMDRDMzkyN0M3Q0IwREUKUldUZXNIeDhrc01FVCt1R1pZZnNFb0ExNnFDRTA2ZEpsanUva0ZWbjhxODFTdWZaMi9DdmtYekkK"
