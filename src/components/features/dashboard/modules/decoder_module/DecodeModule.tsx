@@ -1,164 +1,32 @@
 import { useState, useEffect, useRef } from "react";
 import { Eye, Copy, Play, Square, Volume2, Info, X } from "lucide-react";
-
-// --- 1. TỪ ĐIỂN DỮ LIỆU ---
-const MORSE_MAP: Record<string, string> = {
-  A: ".-",
-  B: "-...",
-  C: "-.-.",
-  D: "-..",
-  E: ".",
-  F: "..-.",
-  G: "--.",
-  H: "....",
-  I: "..",
-  J: ".---",
-  K: "-.-",
-  L: ".-..",
-  M: "--",
-  N: "-.",
-  O: "---",
-  P: ".--.",
-  Q: "--.-",
-  R: ".-.",
-  S: "...",
-  T: "-",
-  U: "..-",
-  V: "...-",
-  W: ".--",
-  X: "-..-",
-  Y: "-.--",
-  Z: "--..",
-  "1": ".----",
-  "2": "..---",
-  "3": "...--",
-  "4": "....-",
-  "5": ".....",
-  "6": "-....",
-  "7": "--...",
-  "8": "---..",
-  "9": "----.",
-  "0": "-----",
-  " ": "/",
-  ".": ".-.-.-",
-  ",": "--..--",
-  "?": "..--..",
-  "!": "-.-.--",
-  "@": ".--.-.",
-};
-const REVERSE_MORSE_MAP = Object.fromEntries(
-  Object.entries(MORSE_MAP).map(([k, v]) => [v, k])
-);
-
-// Map ký tự Braille Unicode
-const BRAILLE_MAP: Record<string, string> = {
-  a: "⠁",
-  b: "⠃",
-  c: "⠉",
-  d: "⠙",
-  e: "⠑",
-  f: "⠋",
-  g: "⠛",
-  h: "⠓",
-  i: "⠊",
-  j: "⠚",
-  k: "⠅",
-  l: "⠇",
-  m: "⠍",
-  n: "⠝",
-  o: "⠕",
-  p: "⠏",
-  q: "⠟",
-  r: "⠗",
-  s: "⠎",
-  t: "⠞",
-  u: "⠥",
-  v: "⠧",
-  w: "⠺",
-  x: "⠭",
-  y: "⠽",
-  z: "⠵",
-  "1": "⠼⠁",
-  "2": "⠼⠃",
-  "3": "⠼⠉",
-  "4": "⠼⠙",
-  "5": "⠼⠑",
-  "6": "⠼⠋",
-  "7": "⠼⠛",
-  "8": "⠼⠓",
-  "9": "⠼⠊",
-  "0": "⠼⠚",
-  " ": "⠀",
-  ".": "⠲",
-  ",": "⠂",
-  "?": "⠦",
-  "!": "⠖",
-};
-const REVERSE_BRAILLE_MAP = Object.fromEntries(
-  Object.entries(BRAILLE_MAP).map(([k, v]) => [v, k])
-);
-
-// 👇 MỚI: Map vị trí các chấm (Dot Position)
-const BRAILLE_DOTS_MAP: Record<string, string> = {
-  a: "1",
-  b: "1-2",
-  c: "1-4",
-  d: "1-4-5",
-  e: "1-5",
-  f: "1-2-4",
-  g: "1-2-4-5",
-  h: "1-2-5",
-  i: "2-4",
-  j: "2-4-5",
-  k: "1-3",
-  l: "1-2-3",
-  m: "1-3-4",
-  n: "1-3-4-5",
-  o: "1-3-5",
-  p: "1-2-3-4",
-  q: "1-2-3-4-5",
-  r: "1-2-3-5",
-  s: "2-3-4",
-  t: "2-3-4-5",
-  u: "1-3-6",
-  v: "1-2-3-6",
-  w: "2-4-5-6",
-  x: "1-3-4-6",
-  y: "1-3-4-5-6",
-  z: "1-3-5-6",
-  " ": "Space",
-  "1": "#-1",
-  "2": "#-1-2",
-  "3": "#-1-4",
-  "4": "#-1-4-5",
-  "5": "#-1-5",
-  "6": "#-1-2-4",
-  "7": "#-1-2-4-5",
-  "8": "#-1-2-5",
-  "9": "#-2-4",
-  "0": "#-2-4-5",
-};
-
-const MODES = [
-  {
-    id: "morse",
-    label: "Morse Code",
-    icon: Volume2,
-    desc: "Signal communication",
-  },
-  { id: "braille", label: "Braille", icon: Eye, desc: "Blind writing system" },
-];
+import {
+  REVERSE_MORSE_MAP,
+  MORSE_MAP,
+  REVERSE_BRAILLE_MAP,
+  BRAILLE_MAP,
+  BRAILLE_DOTS_MAP,
+  MODES,
+} from "./constants/decode_const";
 
 export const DecodeModule = () => {
+  // --- 1. STATE & REFS ---
+
+  // UI State
   const [mode, setMode] = useState("morse");
+  const [showTable, setShowTable] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(false);
+
+  // Data State
   const [input, setInput] = useState("");
   const [output, setOutput] = useState("");
-  const [dotExplanation, setDotExplanation] = useState<string[]>([]); // State lưu giải thích chấm
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [showTable, setShowTable] = useState(false);
+  const [dotExplanation, setDotExplanation] = useState<string[]>([]);
+
+  // Refs
   const audioContextRef = useRef<AudioContext | null>(null);
 
-  // --- LOGIC CHUYỂN ĐỔI ---
+  // --- 2. CONVERSION LOGIC ---
+
   useEffect(() => {
     if (!input) {
       setOutput("");
@@ -169,6 +37,7 @@ export const DecodeModule = () => {
     if (mode === "morse") {
       const isMorseInput = /^[.\- /]+$/.test(input);
       if (isMorseInput) {
+        // Morse -> Text
         const decoded = input
           .split(" ")
           .map((code) => REVERSE_MORSE_MAP[code] || "?")
@@ -176,6 +45,7 @@ export const DecodeModule = () => {
           .replace(/\//g, " ");
         setOutput(decoded);
       } else {
+        // Text -> Morse
         const encoded = input
           .toUpperCase()
           .split("")
@@ -193,7 +63,7 @@ export const DecodeModule = () => {
           res += REVERSE_BRAILLE_MAP[char] || char;
         }
         setOutput(res);
-        setDotExplanation([]); // Không hiện giải thích khi dịch ngược
+        setDotExplanation([]);
       } else {
         // Text -> Braille
         const lowerInput = input.toLowerCase();
@@ -202,10 +72,9 @@ export const DecodeModule = () => {
 
         for (const char of lowerInput) {
           res += BRAILLE_MAP[char] || char;
-          // Tạo giải thích vị trí chấm
           if (BRAILLE_DOTS_MAP[char]) {
             explanationList.push(
-              `${char.toUpperCase()}: [${BRAILLE_DOTS_MAP[char]}]`
+              `${char.toUpperCase()}: [${BRAILLE_DOTS_MAP[char]}]`,
             );
           } else if (char !== " ") {
             explanationList.push(`${char}: ?`);
@@ -217,7 +86,8 @@ export const DecodeModule = () => {
     }
   }, [input, mode]);
 
-  // --- LOGIC ÂM THANH MORSE (Giữ nguyên) ---
+  // --- 3. AUDIO HANDLERS (MORSE) ---
+
   const playDot = (ctx: AudioContext, time: number) => {
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
@@ -228,6 +98,7 @@ export const DecodeModule = () => {
     osc.start(time);
     osc.stop(time + 0.1);
   };
+
   const playDash = (ctx: AudioContext, time: number) => {
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
@@ -238,18 +109,24 @@ export const DecodeModule = () => {
     osc.start(time);
     osc.stop(time + 0.3);
   };
+
   const handlePlayMorse = async () => {
+    // Toggle Off
     if (isPlaying) {
       if (audioContextRef.current) audioContextRef.current.close();
       setIsPlaying(false);
       return;
     }
+
+    // Prepare Text
     const textToPlay = /^[.\- /]+$/.test(input) ? input : output;
     if (!textToPlay) return;
 
+    // Start Playing
     setIsPlaying(true);
-    const ctx = new (window.AudioContext ||
-      (window as any).webkitAudioContext)();
+    const ctx = new (
+      window.AudioContext || (window as any).webkitAudioContext
+    )();
     audioContextRef.current = ctx;
 
     let startTime = ctx.currentTime + 0.1;
@@ -264,10 +141,15 @@ export const DecodeModule = () => {
         startTime += 0.4;
       }
     }
-    setTimeout(() => {
-      setIsPlaying(false);
-      ctx.close();
-    }, (startTime - ctx.currentTime) * 1000);
+
+    // Auto Stop
+    setTimeout(
+      () => {
+        setIsPlaying(false);
+        ctx.close();
+      },
+      (startTime - ctx.currentTime) * 1000,
+    );
   };
 
   return (
@@ -365,7 +247,7 @@ export const DecodeModule = () => {
                     {v}
                   </span>
                 </div>
-              )
+              ),
             )}
           </div>
         )}

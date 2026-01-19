@@ -19,124 +19,57 @@ import {
   X,
   Menu,
 } from "lucide-react";
-import { useToastStore } from "../../../../stores/useToastStore";
-
-// --- CONSTANTS: STANDARD CLAIMS DICTIONARY ---
-const CLAIM_DESCRIPTIONS: Record<string, string> = {
-  iss: "Issuer (Người phát hành token)",
-  sub: "Subject (Chủ thể/User ID)",
-  aud: "Audience (Đối tượng thụ hưởng)",
-  exp: "Expiration Time (Thời gian hết hạn)",
-  nbf: "Not Before (Không dùng trước thời gian này)",
-  iat: "Issued At (Thời gian phát hành)",
-  jti: "JWT ID (ID duy nhất của token)",
-  name: "User's Full Name",
-  email: "User's Email",
-  role: "User Role/Permissions",
-  scope: "Authorized Scopes",
-};
-
-// --- HELPERS ---
-const base64UrlDecode = (str: string) => {
-  try {
-    let output = str.replace(/-/g, "+").replace(/_/g, "/");
-    switch (output.length % 4) {
-      case 0:
-        break;
-      case 2:
-        output += "==";
-        break;
-      case 3:
-        output += "=";
-        break;
-      default:
-        throw new Error("Illegal base64url string!");
-    }
-    const result = window.atob(output);
-    return decodeURIComponent(escape(result));
-  } catch (e) {
-    return null;
-  }
-};
-
-const formatTime = (timestamp: number) => {
-  if (!timestamp) return "N/A";
-  const date = new Date(timestamp * 1000);
-  const day = String(date.getDate()).padStart(2, "0");
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const year = date.getFullYear();
-  const hours = String(date.getHours()).padStart(2, "0");
-  const minutes = String(date.getMinutes()).padStart(2, "0");
-  const seconds = String(date.getSeconds()).padStart(2, "0");
-  return `${day}/${month}/${year}, ${hours}:${minutes}:${seconds}`;
-};
-
-const getRelativeTime = (timestamp: number) => {
-  const now = Math.floor(Date.now() / 1000);
-  const diff = timestamp - now;
-  const absDiff = Math.abs(diff);
-
-  let timeStr = "";
-  if (absDiff < 60) timeStr = `${absDiff}s`;
-  else if (absDiff < 3600) timeStr = `${Math.floor(absDiff / 60)}m`;
-  else if (absDiff < 86400) timeStr = `${Math.floor(absDiff / 3600)}h`;
-  else if (absDiff < 2592000) timeStr = `${Math.floor(absDiff / 86400)}d`;
-  else if (absDiff < 31536000) timeStr = `${Math.floor(absDiff / 2592000)}mo`;
-  else timeStr = `${Math.floor(absDiff / 31536000)}y`;
-
-  if (diff < 0) return `Expired ${timeStr} ago`;
-  return `Expires in ${timeStr}`;
-};
-
-interface JwtHistoryItem {
-  id: string;
-  token: string;
-  label: string;
-  timestamp: number;
-  isValid: boolean;
-}
+import { useToastStore } from "../../../../../stores/useToastStore";
+import { CLAIM_DESCRIPTIONS } from "./constants/jwt_const";
+import {
+  base64UrlDecode,
+  formatTime,
+  getRelativeTime,
+} from "./helper/jwt_helper";
+import { JwtHistoryItem } from "./types/jwt_type";
 
 export const JwtModule = () => {
+  // --- 1. STATE MANAGEMENT ---
+
   const { showToast } = useToastStore();
 
+  // A. JWT Data & Validation State
   const [token, setToken] = useState("");
   const [header, setHeader] = useState<any>(null);
   const [payload, setPayload] = useState<any>(null);
-  const [signature, setSignature] = useState("");
   const [isValid, setIsValid] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // History State
+  // B. History State
   const [history, setHistory] = useState<JwtHistoryItem[]>([]);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
-  // UI State
+  // C. UI State
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [activeMobileTab, setActiveMobileTab] = useState<"input" | "decoded">(
-    "input"
+    "input",
   );
 
-  if (signature === "") {
-    // Nếu signature rỗng, token không hợp lệ
-  }
+  // --- 2. EFFECTS (LIFECYCLE & LOGIC) ---
 
-  // --- LOAD HISTORY ---
+  // Effect 1: Load History on Mount
   useEffect(() => {
     const saved = localStorage.getItem("dashboard_jwt_history");
     if (saved) setHistory(JSON.parse(saved));
   }, []);
 
-  // --- PARSE & SAVE HISTORY LOGIC ---
+  // Effect 2: Parse Token & Update History
   useEffect(() => {
+    // 2.1. Reset if empty
     if (!token.trim()) {
       setHeader(null);
       setPayload(null);
-      setSignature("");
       setIsValid(false);
       setError(null);
       return;
     }
 
+    // 2.2. Validate Format
     const parts = token.split(".");
     if (parts.length !== 3) {
       setIsValid(false);
@@ -144,6 +77,7 @@ export const JwtModule = () => {
       return;
     }
 
+    // 2.3. Decode Base64
     const decodedHeader = base64UrlDecode(parts[0]);
     const decodedPayload = base64UrlDecode(parts[1]);
 
@@ -153,18 +87,18 @@ export const JwtModule = () => {
       return;
     }
 
+    // 2.4. Parse JSON & Save
     try {
       const parsedHeader = JSON.parse(decodedHeader);
       const parsedPayload = JSON.parse(decodedPayload);
 
       setHeader(parsedHeader);
       setPayload(parsedPayload);
-      setSignature(parts[2]);
       setIsValid(true);
       setError(null);
       setActiveMobileTab("decoded");
 
-      // Add to History
+      // Auto-save to history
       addToHistory(token, parsedPayload, true);
     } catch (e) {
       setIsValid(false);
@@ -172,8 +106,11 @@ export const JwtModule = () => {
     }
   }, [token]);
 
+  // --- 3. HISTORY HANDLERS ---
+
   const addToHistory = (tokenVal: string, payloadVal: any, valid: boolean) => {
     setHistory((prev) => {
+      // Prevent duplicates at the top
       if (prev.length > 0 && prev[0].token === tokenVal) return prev;
 
       const label =
@@ -181,6 +118,7 @@ export const JwtModule = () => {
         payloadVal?.email ||
         payloadVal?.name ||
         tokenVal.substring(0, 15) + "...";
+
       const newItem: JwtHistoryItem = {
         id: Date.now().toString(),
         token: tokenVal,
@@ -195,9 +133,8 @@ export const JwtModule = () => {
     });
   };
 
-  // --- NEW: DELETE SINGLE ITEM ---
   const deleteHistoryItem = (id: string, e: React.MouseEvent) => {
-    e.stopPropagation(); // Ngăn chặn sự kiện click lan ra ngoài (không chọn token)
+    e.stopPropagation();
     const newHistory = history.filter((item) => item.id !== id);
     setHistory(newHistory);
     localStorage.setItem("dashboard_jwt_history", JSON.stringify(newHistory));
@@ -209,6 +146,8 @@ export const JwtModule = () => {
     localStorage.setItem("dashboard_jwt_history", "[]");
     showToast("Cleared JWT history", "success");
   };
+
+  // --- 4. CLIPBOARD HANDLERS ---
 
   const handlePaste = async () => {
     try {
@@ -224,6 +163,8 @@ export const JwtModule = () => {
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
+
+  // --- 5. COMPUTED VALUES ---
 
   const isExpired = payload?.exp ? Date.now() / 1000 > payload.exp : false;
 

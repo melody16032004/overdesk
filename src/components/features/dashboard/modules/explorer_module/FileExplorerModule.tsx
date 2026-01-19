@@ -2,10 +2,6 @@ import { useState, useEffect, useRef } from "react";
 import {
   Folder,
   FolderOpen,
-  File,
-  FileCode,
-  FileJson,
-  FileText,
   Trash2,
   ChevronRight,
   ChevronDown,
@@ -19,59 +15,14 @@ import {
   Search,
   Edit2,
 } from "lucide-react";
-
-// --- TYPES ---
-type FileType = "file" | "folder";
-
-interface FileSystemItem {
-  id: string;
-  name: string;
-  type: FileType;
-  content?: string;
-  isOpen?: boolean;
-  children?: FileSystemItem[];
-  parentId?: string | null;
-}
-
-// --- HELPER: ICONS ---
-const getFileIcon = (name: string) => {
-  if (name.endsWith(".json"))
-    return <FileJson size={14} className="text-yellow-400" />;
-  if (name.endsWith(".tsx") || name.endsWith(".ts") || name.endsWith(".js"))
-    return <FileCode size={14} className="text-blue-400" />;
-  if (name.endsWith(".css") || name.endsWith(".scss"))
-    return <FileCode size={14} className="text-pink-400" />;
-  if (name.endsWith(".html"))
-    return <FileCode size={14} className="text-orange-400" />;
-  if (name.endsWith(".md") || name.endsWith(".txt"))
-    return <FileText size={14} className="text-slate-400" />;
-  return <File size={14} className="text-slate-500" />;
-};
-
-// --- INITIAL DATA ---
-const INITIAL_FILES: FileSystemItem[] = [
-  {
-    id: "root",
-    name: "root",
-    type: "folder",
-    isOpen: true,
-    parentId: null,
-    children: [
-      {
-        id: "readme_md",
-        name: "README.md",
-        type: "file",
-        content: "# Welcome to IDE Lite\n\nNow with Tabs & Renaming!",
-        parentId: "root",
-      },
-    ],
-  },
-];
+import { FileSystemItem, FileType } from "./types/explorer_type";
+import { INITIAL_FILES } from "./constants/explorer_const";
+import { getFileIcon } from "./helper/explorer_helper";
 
 export const FileExplorerModule = () => {
-  // --- STATE ---
+  // --- STATE & REFS ---
 
-  // 1. File System
+  // File System State
   const [fileSystem, setFileSystem] = useState<FileSystemItem[]>(() => {
     try {
       const saved = localStorage.getItem("dashboard_file_system");
@@ -81,41 +32,39 @@ export const FileExplorerModule = () => {
     }
   });
 
-  // 2. Tabs Management (NEW)
-  const [openFiles, setOpenFiles] = useState<string[]>([]); // Danh sách ID các file đang mở
-  const [activeFileId, setActiveFileId] = useState<string | null>(null); // File đang focus
-
-  const [selectedFolderId, setSelectedFolderId] = useState<string>("root");
+  // Tab & Editor State
+  const [openFiles, setOpenFiles] = useState<string[]>([]);
+  const [activeFileId, setActiveFileId] = useState<string | null>(null);
   const [fileContent, setFileContent] = useState("");
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-
-  // Save Status
+  const [selectedFolderId, setSelectedFolderId] = useState<string>("root");
   const [saveStatus, setSaveStatus] = useState<"saved" | "saving" | "unsaved">(
-    "saved"
+    "saved",
   );
-  const autoSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Refs
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const lineNumbersRef = useRef<HTMLDivElement>(null);
-
-  // Modals State
+  // UI State
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [showRenameModal, setShowRenameModal] = useState(false); // NEW
+  const [showRenameModal, setShowRenameModal] = useState(false);
 
-  const [inputName, setInputName] = useState(""); // Dùng chung cho Create & Rename
+  // Input State
+  const [inputName, setInputName] = useState("");
   const [newItemType, setNewItemType] = useState<FileType>("file");
   const [itemToRename, setItemToRename] = useState<{
     id: string;
     name: string;
   } | null>(null);
 
-  // --- PERSISTENCE ---
+  // Refs
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const lineNumbersRef = useRef<HTMLDivElement>(null);
+  const autoSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // --- PERSISTENCE & AUTO-SAVE ---
+
   useEffect(() => {
     localStorage.setItem("dashboard_file_system", JSON.stringify(fileSystem));
   }, [fileSystem]);
 
-  // --- AUTO SAVE ---
   const handleContentChange = (newContent: string) => {
     setFileContent(newContent);
     setSaveStatus("unsaved");
@@ -138,7 +87,151 @@ export const FileExplorerModule = () => {
     }, 800);
   };
 
-  // --- EDITOR HANDLERS (Giữ nguyên) ---
+  // --- HELPER FUNCTIONS ---
+
+  const findItem = (
+    items: FileSystemItem[],
+    id: string,
+  ): FileSystemItem | null => {
+    for (const item of items) {
+      if (item.id === id) return item;
+      if (item.children) {
+        const found = findItem(item.children, id);
+        if (found) return found;
+      }
+    }
+    return null;
+  };
+
+  const activeFileObj = activeFileId
+    ? findItem(fileSystem, activeFileId)
+    : null;
+
+  // --- HANDLERS: TREE & TABS ---
+
+  const toggleFolder = (folderId: string) => {
+    const newFS = JSON.parse(JSON.stringify(fileSystem));
+    const target = findItem(newFS, folderId);
+    if (target && target.type === "folder") {
+      target.isOpen = !target.isOpen;
+      setFileSystem(newFS);
+      setSelectedFolderId(folderId);
+    }
+  };
+
+  const handleOpenFile = (file: FileSystemItem) => {
+    if (!openFiles.includes(file.id)) {
+      setOpenFiles([...openFiles, file.id]);
+    }
+    setActiveFileId(file.id);
+    const currentFile = findItem(fileSystem, file.id);
+    setFileContent(currentFile?.content || "");
+    setIsMobileMenuOpen(false);
+    setSaveStatus("saved");
+  };
+
+  const handleCloseTab = (e: React.MouseEvent, idToClose: string) => {
+    e.stopPropagation();
+    const newOpenFiles = openFiles.filter((id) => id !== idToClose);
+    setOpenFiles(newOpenFiles);
+
+    if (activeFileId === idToClose) {
+      if (newOpenFiles.length > 0) {
+        const lastFileId = newOpenFiles[newOpenFiles.length - 1];
+        setActiveFileId(lastFileId);
+        const file = findItem(fileSystem, lastFileId);
+        setFileContent(file?.content || "");
+      } else {
+        setActiveFileId(null);
+        setFileContent("");
+      }
+    }
+  };
+
+  const handleCreateItem = () => {
+    if (!inputName.trim()) return;
+    const newFS = JSON.parse(JSON.stringify(fileSystem));
+    const parent = findItem(newFS, selectedFolderId);
+    const targetParent =
+      parent && parent.type === "folder" ? parent : findItem(newFS, "root");
+
+    if (targetParent && targetParent.type === "folder") {
+      if (!targetParent.children) targetParent.children = [];
+      const newItem: FileSystemItem = {
+        id: Date.now().toString(),
+        name: inputName,
+        type: newItemType,
+        parentId: targetParent.id,
+        content: newItemType === "file" ? "" : undefined,
+        children: newItemType === "folder" ? [] : undefined,
+        isOpen: true,
+      };
+      targetParent.children.push(newItem);
+      targetParent.isOpen = true;
+      setFileSystem(newFS);
+      setShowCreateModal(false);
+      setInputName("");
+      if (newItemType === "file") handleOpenFile(newItem);
+    } else {
+      alert("Cannot create item here.");
+    }
+  };
+
+  const handleRenameItem = () => {
+    if (!itemToRename || !inputName.trim()) return;
+
+    const renameNode = (items: FileSystemItem[]): FileSystemItem[] => {
+      return items.map((item) => {
+        if (item.id === itemToRename.id) {
+          return { ...item, name: inputName };
+        }
+        if (item.children) {
+          return { ...item, children: renameNode(item.children) };
+        }
+        return item;
+      });
+    };
+
+    const newFS = renameNode(JSON.parse(JSON.stringify(fileSystem)));
+    setFileSystem(newFS);
+    setShowRenameModal(false);
+    setItemToRename(null);
+    setInputName("");
+  };
+
+  const handleDeleteItem = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!confirm("Delete this item?")) return;
+
+    const deleteNode = (items: FileSystemItem[]): FileSystemItem[] => {
+      return items.filter((item) => {
+        if (item.id === id) return false;
+        if (item.children) item.children = deleteNode(item.children);
+        return true;
+      });
+    };
+
+    const newFS = deleteNode(JSON.parse(JSON.stringify(fileSystem)));
+    setFileSystem(newFS);
+
+    if (openFiles.includes(id)) {
+      const newOpen = openFiles.filter((fid) => fid !== id);
+      setOpenFiles(newOpen);
+      if (activeFileId === id) {
+        setActiveFileId(
+          newOpen.length > 0 ? newOpen[newOpen.length - 1] : null,
+        );
+        if (newOpen.length === 0) setFileContent("");
+        else {
+          const f = findItem(newFS, newOpen[newOpen.length - 1]);
+          setFileContent(f?.content || "");
+        }
+      }
+    }
+  };
+
+  // --- HANDLERS: EDITOR ---
+
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Tab") {
       e.preventDefault();
@@ -152,6 +245,7 @@ export const FileExplorerModule = () => {
         target.selectionStart = target.selectionEnd = start + 2;
       }, 0);
     }
+
     const pairs: { [key: string]: string } = {
       "(": ")",
       "{": "}",
@@ -159,6 +253,7 @@ export const FileExplorerModule = () => {
       '"': '"',
       "'": "'",
     };
+
     if (pairs[e.key]) {
       e.preventDefault();
       const target = e.target as HTMLTextAreaElement;
@@ -173,6 +268,7 @@ export const FileExplorerModule = () => {
         target.selectionStart = target.selectionEnd = start + 1;
       }, 0);
     }
+
     if (e.key === "Enter") {
       const target = e.target as HTMLTextAreaElement;
       const start = target.selectionStart;
@@ -202,181 +298,24 @@ export const FileExplorerModule = () => {
     }
   };
 
-  // --- HELPERS ---
-  const findItem = (
-    items: FileSystemItem[],
-    id: string
-  ): FileSystemItem | null => {
-    for (const item of items) {
-      if (item.id === id) return item;
-      if (item.children) {
-        const found = findItem(item.children, id);
-        if (found) return found;
-      }
-    }
-    return null;
-  };
+  // --- RENDERING HELPERS ---
 
-  // 1. Toggle Folder
-  const toggleFolder = (folderId: string) => {
-    const newFS = JSON.parse(JSON.stringify(fileSystem));
-    const target = findItem(newFS, folderId);
-    if (target && target.type === "folder") {
-      target.isOpen = !target.isOpen;
-      setFileSystem(newFS);
-      setSelectedFolderId(folderId);
-    }
-  };
-
-  // 2. Open File (Multi-tab Logic)
-  const handleOpenFile = (file: FileSystemItem) => {
-    // Nếu file chưa có trong danh sách tab, thêm vào
-    if (!openFiles.includes(file.id)) {
-      setOpenFiles([...openFiles, file.id]);
-    }
-
-    // Nếu đang sửa file khác chưa lưu xong (debounce chưa chạy), lưu ngay
-    if (saveStatus === "unsaved" && activeFileId && activeFileId !== file.id) {
-      // Force save logic here if strictly needed,
-      // but existing auto-save closure usually handles it or next render captures it.
-      // For simplicity in this demo, we assume risk is low or accepted.
-    }
-
-    // Set Active
-    setActiveFileId(file.id);
-
-    // Load content mới
-    // Lưu ý: Cần lấy content mới nhất từ fileSystem (nơi lưu trữ chính)
-    const currentFile = findItem(fileSystem, file.id);
-    setFileContent(currentFile?.content || "");
-
-    setIsMobileMenuOpen(false);
-    setSaveStatus("saved");
-  };
-
-  // 3. Close Tab
-  const handleCloseTab = (e: React.MouseEvent, idToClose: string) => {
-    e.stopPropagation();
-    const newOpenFiles = openFiles.filter((id) => id !== idToClose);
-    setOpenFiles(newOpenFiles);
-
-    // Nếu đóng tab đang active, chuyển focus sang tab bên cạnh
-    if (activeFileId === idToClose) {
-      if (newOpenFiles.length > 0) {
-        const lastFileId = newOpenFiles[newOpenFiles.length - 1];
-        setActiveFileId(lastFileId);
-        const file = findItem(fileSystem, lastFileId);
-        setFileContent(file?.content || "");
-      } else {
-        setActiveFileId(null);
-        setFileContent("");
-      }
-    }
-  };
-
-  // 4. Create New Item
-  const handleCreateItem = () => {
-    if (!inputName.trim()) return;
-    const newFS = JSON.parse(JSON.stringify(fileSystem));
-    const parent = findItem(newFS, selectedFolderId);
-    const targetParent =
-      parent && parent.type === "folder" ? parent : findItem(newFS, "root");
-
-    if (targetParent && targetParent.type === "folder") {
-      if (!targetParent.children) targetParent.children = [];
-      const newItem: FileSystemItem = {
-        id: Date.now().toString(),
-        name: inputName,
-        type: newItemType,
-        parentId: targetParent.id,
-        content: newItemType === "file" ? "" : undefined,
-        children: newItemType === "folder" ? [] : undefined,
-        isOpen: true,
-      };
-      targetParent.children.push(newItem);
-      targetParent.isOpen = true;
-      setFileSystem(newFS);
-      setShowCreateModal(false);
-      setInputName("");
-      if (newItemType === "file") {
-        handleOpenFile(newItem);
-      }
-    } else {
-      alert("Cannot create item here.");
-    }
-  };
-
-  // 5. Rename Item (NEW)
-  const handleRenameItem = () => {
-    if (!itemToRename || !inputName.trim()) return;
-
-    const renameNode = (items: FileSystemItem[]): FileSystemItem[] => {
-      return items.map((item) => {
-        if (item.id === itemToRename.id) {
-          return { ...item, name: inputName };
-        }
-        if (item.children) {
-          return { ...item, children: renameNode(item.children) };
-        }
-        return item;
-      });
-    };
-
-    const newFS = renameNode(JSON.parse(JSON.stringify(fileSystem)));
-    setFileSystem(newFS);
-    setShowRenameModal(false);
-    setItemToRename(null);
-    setInputName("");
-  };
-
-  // 6. Delete Item
-  const handleDeleteItem = (id: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (!confirm("Delete this item?")) return;
-    const deleteNode = (items: FileSystemItem[]): FileSystemItem[] => {
-      return items.filter((item) => {
-        if (item.id === id) return false;
-        if (item.children) item.children = deleteNode(item.children);
-        return true;
-      });
-    };
-    const newFS = deleteNode(JSON.parse(JSON.stringify(fileSystem)));
-    setFileSystem(newFS);
-
-    // Close tab if deleted
-    if (openFiles.includes(id)) {
-      const newOpen = openFiles.filter((fid) => fid !== id);
-      setOpenFiles(newOpen);
-      if (activeFileId === id) {
-        setActiveFileId(
-          newOpen.length > 0 ? newOpen[newOpen.length - 1] : null
-        );
-        if (newOpen.length === 0) setFileContent("");
-        else {
-          const f = findItem(newFS, newOpen[newOpen.length - 1]);
-          setFileContent(f?.content || "");
-        }
-      }
-    }
-  };
-
-  // --- RENDER TREE ---
   const renderTree = (items: FileSystemItem[], depth = 0) => {
     return items.map((item) => (
       <div key={item.id}>
         <div
           className={`flex items-center justify-between px-2 py-1.5 cursor-pointer text-xs select-none group transition-colors 
-            ${
-              item.id === activeFileId
-                ? "bg-slate-700 text-white"
-                : "text-slate-400 hover:bg-[#2d2d2d] hover:text-slate-200"
-            } 
-            ${
-              item.id === selectedFolderId && item.type === "folder"
-                ? "bg-[#3e3e42]/50 border-l-2 border-blue-500"
-                : "border-l-2 border-transparent"
-            }
-          `}
+          ${
+            item.id === activeFileId
+              ? "bg-slate-700 text-white"
+              : "text-slate-400 hover:bg-[#2d2d2d] hover:text-slate-200"
+          } 
+          ${
+            item.id === selectedFolderId && item.type === "folder"
+              ? "bg-[#3e3e42]/50 border-l-2 border-blue-500"
+              : "border-l-2 border-transparent"
+          }
+        `}
           style={{ paddingLeft: `${depth * 12 + 8}px` }}
           onClick={() => {
             if (item.type === "folder") toggleFolder(item.id);
@@ -435,10 +374,6 @@ export const FileExplorerModule = () => {
     ));
   };
 
-  const activeFileObj = activeFileId
-    ? findItem(fileSystem, activeFileId)
-    : null;
-
   return (
     <div className="h-full flex flex-col bg-[#1e1e1e] text-slate-300 font-sans overflow-hidden">
       {/* HEADER */}
@@ -467,8 +402,8 @@ export const FileExplorerModule = () => {
                 saveStatus === "saved"
                   ? "bg-green-500/10 text-green-400 border-green-500/20"
                   : saveStatus === "saving"
-                  ? "bg-yellow-500/10 text-yellow-400 border-yellow-500/20"
-                  : "bg-slate-700 text-slate-400 border-slate-600"
+                    ? "bg-yellow-500/10 text-yellow-400 border-yellow-500/20"
+                    : "bg-slate-700 text-slate-400 border-slate-600"
               }`}
             >
               {saveStatus === "saved" && <Check size={10} />}
@@ -481,8 +416,8 @@ export const FileExplorerModule = () => {
               {saveStatus === "saved"
                 ? "Saved"
                 : saveStatus === "saving"
-                ? "Saving..."
-                : "Unsaved"}
+                  ? "Saving..."
+                  : "Unsaved"}
             </div>
           )}
         </div>

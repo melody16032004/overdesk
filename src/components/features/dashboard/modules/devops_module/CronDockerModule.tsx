@@ -14,82 +14,33 @@ import {
   Menu,
   Code2,
 } from "lucide-react";
-
-// --- TYPES ---
-interface DockerService {
-  id: string;
-  name: string;
-  image: string;
-  ports: { host: string; container: string }[];
-  volumes: { host: string; container: string }[];
-  environment: { key: string; value: string }[];
-  restart: "always" | "unless-stopped" | "no" | "on-failure";
-}
-
-// --- HELPER: CRON LOGIC ---
-const PRESETS_CRON = [
-  { label: "Every Minute", value: "* * * * *" },
-  { label: "Every 5 Minutes", value: "*/5 * * * *" },
-  { label: "Every Hour", value: "0 * * * *" },
-  { label: "Midnight Daily", value: "0 0 * * *" },
-  { label: "Weekly (Sun)", value: "0 0 * * 0" },
-  { label: "Monthly (1st)", value: "0 0 1 * *" },
-];
-
-const explainCron = (cron: string) => {
-  const parts = cron.trim().split(/\s+/);
-  if (parts.length !== 5)
-    return { text: "Invalid format (requires 5 parts)", error: true };
-
-  const [min, hour, dom, mon, dow] = parts;
-  let text = "";
-
-  if (cron === "* * * * *") text = "Runs every minute";
-  else if (min.startsWith("*/"))
-    text = `Runs every ${min.replace("*/", "")} minutes`;
-  else if (
-    min === "0" &&
-    hour !== "*" &&
-    dom === "*" &&
-    mon === "*" &&
-    dow === "*"
-  )
-    text = `Runs at minute 0 past hour ${hour}`;
-  else if (
-    min === "0" &&
-    hour === "0" &&
-    dom === "*" &&
-    mon === "*" &&
-    dow === "*"
-  )
-    text = "Runs at 00:00 every day";
-  else
-    text = `At ${hour}:${min}, on day ${dom} of month ${mon}, and day of week ${dow}`;
-
-  return { text, error: false };
-};
+import { PRESETS_CRON } from "./constants/devops_const";
+import { explainCron, generateYamlBlock } from "./helper/devops_helper";
+import { DockerService } from "./types/devops_type";
 
 // --- COMPONENT ---
 export const CronDockerModule = () => {
-  // 1. LAZY INIT
+  // --- 1. STATE INITIALIZATION ---
+
+  // UI State
   const [activeTab, setActiveTab] = useState<"cron" | "docker">(
     () =>
-      (localStorage.getItem("devops_active_tab") as "cron" | "docker") || "cron"
+      (localStorage.getItem("devops_active_tab") as "cron" | "docker") ||
+      "cron",
   );
-
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
 
-  // 2. CRON STATE
+  // Cron State
   const [cronExp, setCronExp] = useState(
-    () => localStorage.getItem("devops_cron_exp") || "* * * * *"
+    () => localStorage.getItem("devops_cron_exp") || "* * * * *",
   );
   const [cronInfo, setCronInfo] = useState({
     text: "Runs every minute",
     error: false,
   });
-  const [copied, setCopied] = useState(false);
 
-  // 3. DOCKER STATE
+  // Docker State
   const [services, setServices] = useState<DockerService[]>(() => {
     try {
       const saved = localStorage.getItem("dashboard_docker_services");
@@ -98,12 +49,12 @@ export const CronDockerModule = () => {
       return [];
     }
   });
-
   const [activeServiceId, setActiveServiceId] = useState<string | null>(null);
   const [dockerViewMode, setDockerViewMode] = useState<"edit" | "preview">(
-    "edit"
+    "edit",
   );
 
+  // Docker Form State
   const [formService, setFormService] = useState<DockerService>({
     id: "",
     name: "",
@@ -114,26 +65,34 @@ export const CronDockerModule = () => {
     restart: "unless-stopped",
   });
 
-  // --- PERSISTENCE ---
-  useEffect(() => {
-    localStorage.setItem("dashboard_docker_services", JSON.stringify(services));
-  }, [services]);
-  useEffect(() => {
-    localStorage.setItem("devops_cron_exp", cronExp);
-    setCronInfo(explainCron(cronExp));
-  }, [cronExp]);
+  // --- 2. PERSISTENCE & SIDE EFFECTS ---
+
+  // Save Tab Preference
   useEffect(() => {
     localStorage.setItem("devops_active_tab", activeTab);
   }, [activeTab]);
 
-  // --- HANDLERS ---
+  // Cron Logic & Persistence
+  useEffect(() => {
+    localStorage.setItem("devops_cron_exp", cronExp);
+    setCronInfo(explainCron(cronExp));
+  }, [cronExp]);
+
+  // Docker Logic & Persistence
+  useEffect(() => {
+    localStorage.setItem("dashboard_docker_services", JSON.stringify(services));
+  }, [services]);
+
+  // --- 3. SHARED HANDLERS ---
+
   const handleCopy = (text: string) => {
     navigator.clipboard.writeText(text);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
 
-  // --- DOCKER LOGIC ---
+  // --- 4. DOCKER SPECIFIC HANDLERS ---
+
   const handleAddService = () => {
     const newId = Date.now().toString();
     const newService: DockerService = {
@@ -145,17 +104,20 @@ export const CronDockerModule = () => {
       environment: [],
       restart: "unless-stopped",
     };
+
     setServices([...services, newService]);
     setActiveServiceId(newId);
     setFormService(newService);
     setDockerViewMode("edit");
-    setIsMobileMenuOpen(false); // Close menu on mobile
+    setIsMobileMenuOpen(false);
   };
 
   const handleSaveService = () => {
     setServices((prev) =>
-      prev.map((s) => (s.id === formService.id ? formService : s))
+      prev.map((s) => (s.id === formService.id ? formService : s)),
     );
+
+    // UX Feedback (Optional: Consider using a toast instead of direct DOM manipulation)
     const btn = document.getElementById("save-btn");
     if (btn) {
       const originalText = btn.innerText;
@@ -173,33 +135,6 @@ export const CronDockerModule = () => {
       setServices((prev) => prev.filter((s) => s.id !== id));
       if (activeServiceId === id) setActiveServiceId(null);
     }
-  };
-
-  // --- YAML GENERATOR ---
-  const generateYamlBlock = (svc: DockerService) => {
-    let block = `  ${svc.name}:\n`;
-    block += `    image: ${svc.image}\n`;
-    block += `    restart: ${svc.restart}\n`;
-
-    if (svc.ports.length > 0) {
-      block += `    ports:\n`;
-      svc.ports.forEach(
-        (p) => (block += `      - "${p.host}:${p.container}"\n`)
-      );
-    }
-    if (svc.volumes.length > 0) {
-      block += `    volumes:\n`;
-      svc.volumes.forEach(
-        (v) => (block += `      - ${v.host}:${v.container}\n`)
-      );
-    }
-    if (svc.environment.length > 0) {
-      block += `    environment:\n`;
-      svc.environment.forEach(
-        (e) => (block += `      - ${e.key}=${e.value}\n`)
-      );
-    }
-    return block;
   };
 
   return (
@@ -482,7 +417,7 @@ export const CronDockerModule = () => {
                               >
                                 {opt}
                               </button>
-                            )
+                            ),
                           )}
                         </div>
                       </div>
@@ -544,7 +479,7 @@ export const CronDockerModule = () => {
                                   setFormService({
                                     ...formService,
                                     ports: formService.ports.filter(
-                                      (_, i) => i !== idx
+                                      (_, i) => i !== idx,
                                     ),
                                   })
                                 }
@@ -612,7 +547,7 @@ export const CronDockerModule = () => {
                                   setFormService({
                                     ...formService,
                                     environment: formService.environment.filter(
-                                      (_, i) => i !== idx
+                                      (_, i) => i !== idx,
                                     ),
                                   })
                                 }
@@ -682,7 +617,7 @@ export const CronDockerModule = () => {
                                   setFormService({
                                     ...formService,
                                     volumes: formService.volumes.filter(
-                                      (_, i) => i !== idx
+                                      (_, i) => i !== idx,
                                     ),
                                   })
                                 }
@@ -736,7 +671,7 @@ export const CronDockerModule = () => {
                                 services
                                   .map((s) => generateYamlBlock(s))
                                   .join("\n")
-                            : ""
+                            : "",
                         )
                       }
                       className="text-slate-400 hover:text-white transition-colors"

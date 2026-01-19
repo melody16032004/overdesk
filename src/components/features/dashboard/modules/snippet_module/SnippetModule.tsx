@@ -21,51 +21,32 @@ import {
   Hash,
   X,
   Edit3,
-  Terminal,
-  FileJson,
-  FileCode,
-  Database,
   Star,
   Menu,
   Download,
   Globe,
   AlignLeft,
 } from "lucide-react";
-import { useToastStore } from "../../../../stores/useToastStore";
-
-// --- TYPES ---
-interface Snippet {
-  id: string;
-  title: string;
-  lang: string;
-  code: string;
-  tags: string[];
-  isFavorite?: boolean; // New feature
-  updatedAt: number;
-}
-
-// --- CONSTANTS ---
-const SUPPORTED_LANGS = [
-  { id: "javascript", label: "JavaScript", ext: "js", icon: FileCode },
-  { id: "typescript", label: "TypeScript", ext: "ts", icon: FileCode },
-  { id: "html", label: "HTML", ext: "html", icon: Code2 },
-  { id: "css", label: "CSS", ext: "css", icon: Hash },
-  { id: "sql", label: "SQL", ext: "sql", icon: Database },
-  { id: "python", label: "Python", ext: "py", icon: Terminal },
-  { id: "json", label: "JSON", ext: "json", icon: FileJson },
-];
+import { useToastStore } from "../../../../../stores/useToastStore";
+import { Snippet } from "./types/snippet_type";
+import { SUPPORTED_LANGS } from "./constants/snippet_const";
 
 export const SnippetModule = () => {
+  // --- STATE & EFFECTS ---
   const { showToast } = useToastStore();
-  // --- STATE ---
+
+  // Snippet Data State
   const [snippets, setSnippets] = useState<Snippet[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [filterLang, setFilterLang] = useState<string>("all");
-  const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
 
   // UI State
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false); // Mobile Drawer
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  // Filter State
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filterLang, setFilterLang] = useState<string>("all");
 
   // Edit Mode State
   const [isEditing, setIsEditing] = useState(false);
@@ -74,9 +55,7 @@ export const SnippetModule = () => {
   const [editLang, setEditLang] = useState("javascript");
   const [editTags, setEditTags] = useState("");
 
-  const [copied, setCopied] = useState(false);
-
-  // --- LOAD/SAVE ---
+  // Initial Load & Persistence
   useEffect(() => {
     const saved = localStorage.getItem("dashboard_snippets");
     if (saved) {
@@ -101,12 +80,38 @@ export const SnippetModule = () => {
       localStorage.setItem("dashboard_snippets", JSON.stringify(snippets));
   }, [snippets]);
 
-  // --- ACTIONS ---
+  // --- LOGIC & HELPERS ---
+
+  const activeSnippet = snippets.find((s) => s.id === selectedId);
+
+  const highlightCode = (code: string) => {
+    const langDef =
+      languages[isEditing ? editLang : activeSnippet?.lang || "javascript"] ||
+      languages.javascript;
+    return highlight(
+      code,
+      langDef,
+      isEditing ? editLang : activeSnippet?.lang || "javascript",
+    );
+  };
+
+  // Smart Language Detection from Filename
+  const handleTitleChange = (val: string) => {
+    setEditTitle(val);
+    const ext = val.split(".").pop()?.toLowerCase();
+    if (ext) {
+      const matchedLang = SUPPORTED_LANGS.find((l) => l.ext === ext);
+      if (matchedLang) setEditLang(matchedLang.id);
+    }
+  };
+
+  // --- ACTIONS (CRUD) ---
+
   const handleSelect = (id: string) => {
     setSelectedId(id);
     setIsEditing(false);
     setCopied(false);
-    if (window.innerWidth < 768) setIsSidebarOpen(false); // Auto close sidebar on mobile
+    if (window.innerWidth < 768) setIsSidebarOpen(false);
   };
 
   const handleCreate = () => {
@@ -174,7 +179,7 @@ export const SnippetModule = () => {
   const toggleFavorite = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     const updated = snippets.map((s) =>
-      s.id === id ? { ...s, isFavorite: !s.isFavorite } : s
+      s.id === id ? { ...s, isFavorite: !s.isFavorite } : s,
     );
     setSnippets(updated);
     if (updated.find((s) => s.id === id)?.isFavorite) {
@@ -183,6 +188,8 @@ export const SnippetModule = () => {
       showToast("Removed from favorites", "success");
     }
   };
+
+  // --- EXPORT & UTILS ---
 
   const copyToClipboard = (code: string) => {
     navigator.clipboard.writeText(code);
@@ -204,30 +211,8 @@ export const SnippetModule = () => {
     showToast("Snippets exported as JSON", "success");
   };
 
-  // --- SMART DETECT LANGUAGE ---
-  const handleTitleChange = (val: string) => {
-    setEditTitle(val);
-    // Auto detect lang extension (e.g., "script.py" -> python)
-    const ext = val.split(".").pop()?.toLowerCase();
-    if (ext) {
-      const matchedLang = SUPPORTED_LANGS.find((l) => l.ext === ext);
-      if (matchedLang) setEditLang(matchedLang.id);
-    }
-  };
+  // --- COMPUTED DATA ---
 
-  // --- HIGHLIGHTER ---
-  const highlightCode = (code: string) => {
-    const langDef =
-      languages[isEditing ? editLang : activeSnippet?.lang || "javascript"] ||
-      languages.javascript;
-    return highlight(
-      code,
-      langDef,
-      isEditing ? editLang : activeSnippet?.lang || "javascript"
-    );
-  };
-
-  // --- FILTERING ---
   const filteredSnippets = useMemo(() => {
     let res = snippets;
 
@@ -241,14 +226,14 @@ export const SnippetModule = () => {
       res = res.filter((s) => s.isFavorite);
     }
 
-    // 3. Search (Deep Search: Title, Tags & Code content)
+    // 3. Search (Deep Search)
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       res = res.filter(
         (s) =>
           s.title.toLowerCase().includes(q) ||
           s.tags.some((t) => t.toLowerCase().includes(q)) ||
-          s.code.toLowerCase().includes(q) // Deep search
+          s.code.toLowerCase().includes(q),
       );
     }
 
@@ -258,8 +243,6 @@ export const SnippetModule = () => {
       return a.isFavorite ? -1 : 1;
     });
   }, [snippets, filterLang, searchQuery, showFavoritesOnly]);
-
-  const activeSnippet = snippets.find((s) => s.id === selectedId);
 
   return (
     <div className="h-full flex bg-[#1e1e1e] text-slate-300 font-sans overflow-hidden relative">

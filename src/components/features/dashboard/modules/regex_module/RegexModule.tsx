@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import Editor from "react-simple-code-editor";
 import {
   Regex,
@@ -11,126 +11,87 @@ import {
   Copy,
   Settings2,
 } from "lucide-react";
-
-// --- LIBRARY DATA ---
-const REGEX_LIBRARY = [
-  {
-    label: "Email",
-    pattern: "[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}",
-    desc: "Địa chỉ email chuẩn",
-  },
-  {
-    label: "Phone (VN)",
-    pattern: "(84|0[3|5|7|8|9])+([0-9]{8})\\b",
-    desc: "Số điện thoại Việt Nam",
-  },
-  {
-    label: "Date (DD/MM/YYYY)",
-    pattern:
-      "\\b(0[1-9]|[12][0-9]|3[01])[- /.](0[1-9]|1[012])[- /.](19|20)\\d\\d\\b",
-    desc: "Ngày tháng năm",
-  },
-  {
-    label: "URL",
-    pattern:
-      "https?:\\/\\/(www\\.)?[-a-zA-Z0-9@:%._\\+~#=]{1,256}\\.[a-zA-Z0-9()]{1,6}\\b([-a-zA-Z0-9()@:%_\\+.~#?&//=]*)",
-    desc: "Đường dẫn liên kết",
-  },
-  {
-    label: "IPv4",
-    pattern:
-      "\\b(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\b",
-    desc: "Địa chỉ IP",
-  },
-  {
-    label: "Hex Color",
-    pattern: "#?([a-fA-F0-9]{6}|[a-fA-F0-9]{3})",
-    desc: "Mã màu Hex",
-  },
-  {
-    label: "Password Strong",
-    pattern:
-      "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&])[A-Za-z\\d@$!%*?&]{8,}$",
-    desc: "Mật khẩu mạnh",
-  },
-  {
-    label: "Slug",
-    pattern: "^[a-z0-9]+(?:-[a-z0-9]+)*$",
-    desc: "URL slug an toàn",
-  },
-];
+import { REGEX_LIBRARY } from "./constants/regex_const";
+import { escapeHtml } from "./helper/regex_helper";
 
 export const RegexModule = () => {
-  // --- STATE ---
+  // A. State Management
   const [pattern, setPattern] = useState("\\b\\w+\\b");
   const [flags, setFlags] = useState("gm");
-  const [text, setText] = useState(
-    "Hello World! This is a Regex Tester.\nContact: dev@overdesk.app\nPhone: 0901234567"
-  );
   const [replaceStr, setReplaceStr] = useState("REPLACED");
+  const [text, setText] = useState(
+    "Hello World! This is a Regex Tester.\nContact: dev@overdesk.app\nPhone: 0901234567",
+  );
 
+  // UI State
   const [isLibraryOpen, setIsLibraryOpen] = useState(false);
   const [isReplaceMode, setIsReplaceMode] = useState(false);
 
-  // --- LOGIC ---
+  // B. Computed Logic (Core Regex execution)
   const { matchCount, error, resultText } = useMemo(() => {
     try {
       if (!pattern) return { matchCount: 0, error: null, resultText: text };
+
       const regex = new RegExp(pattern, flags);
       const matches = text.match(regex);
       const count = matches ? (flags.includes("g") ? matches.length : 1) : 0;
       const replaced = text.replace(regex, replaceStr);
+
       return { matchCount: count, error: null, resultText: replaced };
     } catch (e: any) {
       return { matchCount: 0, error: e.message, resultText: text };
     }
   }, [pattern, flags, text, replaceStr]);
 
-  // --- HIGHLIGHTER ---
-  const highlightCode = (code: string) => {
-    if (!pattern)
-      return code
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;");
-    try {
-      const regex = new RegExp(
-        pattern,
-        flags + (flags.includes("g") ? "" : "g")
-      );
-      let lastIndex = 0;
-      let result = "";
-      let match;
-      const escape = (str: string) =>
-        str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  // C. View Helpers (Highlighter)
+  // Sử dụng useCallback để tối ưu hiệu năng render
+  const highlightCode = useCallback(
+    (code: string) => {
+      if (!pattern) return escapeHtml(code);
 
-      while ((match = regex.exec(code)) !== null) {
-        result += escape(code.slice(lastIndex, match.index));
-        const color = isReplaceMode
-          ? "rgba(249, 115, 22, 0.4)"
-          : "rgba(236, 72, 153, 0.4)";
-        const borderColor = isReplaceMode
-          ? "rgba(249, 115, 22, 0.6)"
-          : "rgba(236, 72, 153, 0.6)";
-        result += `<span style="background-color: ${color}; color: white; border-radius: 3px; box-shadow: 0 0 0 1px ${borderColor};">${escape(
-          match[0]
-        )}</span>`;
-        lastIndex = regex.lastIndex;
-        if (!flags.includes("g")) break;
-        if (match[0].length === 0) regex.lastIndex++;
+      try {
+        // Clone regex để tránh lỗi stateful của 'g' flag khi dùng exec
+        const regex = new RegExp(
+          pattern,
+          flags + (flags.includes("g") ? "" : "g"),
+        );
+
+        let lastIndex = 0;
+        let result = "";
+        let match;
+
+        const highlightStyle = isReplaceMode
+          ? "background-color: rgba(249, 115, 22, 0.4); box-shadow: 0 0 0 1px rgba(249, 115, 22, 0.6);" // Orange
+          : "background-color: rgba(236, 72, 153, 0.4); box-shadow: 0 0 0 1px rgba(236, 72, 153, 0.6);"; // Pink
+
+        while ((match = regex.exec(code)) !== null) {
+          // Thêm phần text không khớp trước đó
+          result += escapeHtml(code.slice(lastIndex, match.index));
+
+          // Thêm phần text khớp (được highlight)
+          result += `<span style="${highlightStyle} color: white; border-radius: 3px;">${escapeHtml(match[0])}</span>`;
+
+          lastIndex = regex.lastIndex;
+
+          // Xử lý logic vòng lặp vô hạn nếu match rỗng hoặc không có flag Global
+          if (!flags.includes("g")) break;
+          if (match[0].length === 0) regex.lastIndex++;
+        }
+
+        // Thêm phần text còn lại sau match cuối cùng
+        result += escapeHtml(code.slice(lastIndex));
+        return result;
+      } catch (e) {
+        return escapeHtml(code);
       }
-      result += escape(code.slice(lastIndex));
-      return result;
-    } catch (e) {
-      return code
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;");
-    }
-  };
+    },
+    [pattern, flags, isReplaceMode],
+  );
 
-  const toggleFlag = (f: string) =>
+  // D. Event Handlers
+  const toggleFlag = (f: string) => {
     setFlags((prev) => (prev.includes(f) ? prev.replace(f, "") : prev + f));
+  };
 
   return (
     <div className="h-full flex flex-col bg-[#1e1e1e] text-slate-300 font-sans relative overflow-hidden">
@@ -226,8 +187,8 @@ export const RegexModule = () => {
                       f === "g"
                         ? "Global"
                         : f === "i"
-                        ? "Case Insensitive"
-                        : "Multiline"
+                          ? "Case Insensitive"
+                          : "Multiline"
                     }
                   >
                     {f}

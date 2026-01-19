@@ -19,51 +19,25 @@ import {
   Code,
   List,
 } from "lucide-react";
-
-// --- TYPES ---
-interface HeaderItem {
-  id: number;
-  key: string;
-  value: string;
-}
-interface HistoryItem {
-  url: string;
-  method: string;
-  date: string;
-}
-
-const METHODS = [
-  { label: "GET", color: "text-blue-400" },
-  { label: "POST", color: "text-emerald-400" },
-  { label: "PUT", color: "text-orange-400" },
-  { label: "DELETE", color: "text-red-400" },
-  { label: "PATCH", color: "text-yellow-400" },
-];
+import { HeaderItem, HistoryItem } from "./types/postman_type";
+import { METHODS } from "./constants/postman_const";
+import { formatSize, getStatusColor } from "./helper/postman_helper";
 
 export const RequestModule = () => {
-  // --- STATE ---
+  // --- 1. STATE MANAGEMENT ---
+
+  // A. Request Configuration
   const [url, setUrl] = useState(
-    "https://jsonplaceholder.typicode.com/todos/1"
+    "https://jsonplaceholder.typicode.com/todos/1",
   );
   const [method, setMethod] = useState("GET");
   const [body, setBody] = useState("{\n  \n}");
   const [headers, setHeaders] = useState<HeaderItem[]>([
     { id: 1, key: "Content-Type", value: "application/json" },
   ]);
+
+  // B. Response Data
   const [loading, setLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState<"body" | "headers">("body");
-
-  // History State
-  const [history, setHistory] = useState<HistoryItem[]>(() => {
-    try {
-      return JSON.parse(localStorage.getItem("request_history") || "[]");
-    } catch {
-      return [];
-    }
-  });
-  const [showHistory, setShowHistory] = useState(false);
-
-  // Response State
   const [response, setResponse] = useState<string>("");
   const [status, setStatus] = useState<number | null>(null);
   const [statusText, setStatusText] = useState<string>("");
@@ -71,23 +45,57 @@ export const RequestModule = () => {
   const [size, setSize] = useState<string | null>(null);
   const [isError, setIsError] = useState(false);
 
-  // --- ACTIONS ---
+  // C. UI & History State
+  const [activeTab, setActiveTab] = useState<"body" | "headers">("body");
+  const [showHistory, setShowHistory] = useState(false);
+  const [history, setHistory] = useState<HistoryItem[]>(() => {
+    try {
+      return JSON.parse(localStorage.getItem("request_history") || "[]");
+    } catch {
+      return [];
+    }
+  });
+
+  // --- 2. HELPER FUNCTIONS ---
+
+  // --- 3. STATE MODIFIERS (HANDLERS) ---
+
+  // Header Handlers
+  const addHeader = () => {
+    setHeaders([...headers, { id: Date.now(), key: "", value: "" }]);
+  };
+
+  const removeHeader = (id: number) => {
+    setHeaders(headers.filter((h) => h.id !== id));
+  };
+
+  const updateHeader = (id: number, field: "key" | "value", val: string) => {
+    setHeaders(headers.map((h) => (h.id === id ? { ...h, [field]: val } : h)));
+  };
+
+  // History Handler
   const addToHistory = (currUrl: string, currMethod: string) => {
     const newItem = {
       url: currUrl,
       method: currMethod,
       date: new Date().toLocaleTimeString(),
     };
+    // Add new, remove duplicates, keep last 10
     const newHistory = [
       newItem,
       ...history.filter((h) => h.url !== currUrl),
-    ].slice(0, 10); // Keep last 10
+    ].slice(0, 10);
+
     setHistory(newHistory);
     localStorage.setItem("request_history", JSON.stringify(newHistory));
   };
 
+  // --- 4. CORE LOGIC (HANDLE REQUEST) ---
+
   const handleSend = async () => {
     if (!url) return;
+
+    // 1. Reset State
     setLoading(true);
     setResponse("");
     setStatus(null);
@@ -96,7 +104,7 @@ export const RequestModule = () => {
     const startTime = performance.now();
 
     try {
-      // Build Headers
+      // 2. Prepare Options
       const headerObj: Record<string, string> = {};
       headers.forEach((h) => {
         if (h.key) headerObj[h.key] = h.value;
@@ -109,66 +117,48 @@ export const RequestModule = () => {
 
       if (method !== "GET" && method !== "HEAD") {
         try {
-          JSON.parse(body); // Check JSON validity
+          JSON.parse(body); // Validate JSON
           options.body = body;
         } catch {
           throw new Error("Invalid JSON Body Format");
         }
       }
 
+      // 3. Execute Fetch
       const res = await fetch(url, options);
       const endTime = performance.now();
 
-      // Meta Data
+      // 4. Process Meta Data
       setStatus(res.status);
       setStatusText(res.statusText);
       setTime(Math.round(endTime - startTime));
       setIsError(!res.ok);
 
-      // Process Body
+      // 5. Process Body
       const blob = await res.blob();
-      const textSize = blob.size;
-      setSize(
-        textSize > 1024 ? `${(textSize / 1024).toFixed(2)} KB` : `${textSize} B`
-      );
+      setSize(formatSize(blob.size));
 
       const text = await blob.text();
       try {
-        // Auto Format JSON
+        // Try to format JSON
         setResponse(JSON.stringify(JSON.parse(text), null, 2));
       } catch {
-        // If HTML or Text (Error pages)
+        // Fallback to plain text/html
         setResponse(text);
       }
 
+      // 6. Save History
       addToHistory(url, method);
     } catch (err: any) {
       setIsError(true);
       setResponse(
-        err.message || "Network Error: Check CORS or Internet Connection"
+        err.message || "Network Error: Check CORS or Internet Connection",
       );
       setStatus(0);
       setStatusText("Network Error");
     } finally {
       setLoading(false);
     }
-  };
-
-  // --- HEADER HELPERS ---
-  const addHeader = () =>
-    setHeaders([...headers, { id: Date.now(), key: "", value: "" }]);
-  const removeHeader = (id: number) =>
-    setHeaders(headers.filter((h) => h.id !== id));
-  const updateHeader = (id: number, field: "key" | "value", val: string) => {
-    setHeaders(headers.map((h) => (h.id === id ? { ...h, [field]: val } : h)));
-  };
-
-  const getStatusColor = (s: number | null) => {
-    if (s === null) return "text-slate-500";
-    if (s === 0) return "text-red-500"; // Network Error
-    if (s >= 200 && s < 300) return "text-emerald-400";
-    if (s >= 400) return "text-red-400";
-    return "text-orange-400";
   };
 
   return (
@@ -186,7 +176,7 @@ export const RequestModule = () => {
                 color:
                   METHODS.find((m) => m.label === method)?.color?.replace(
                     "text-",
-                    ""
+                    "",
                   ) || "#fff",
               }}
             >
@@ -390,7 +380,7 @@ export const RequestModule = () => {
               <div className="flex gap-3 text-[10px] font-mono">
                 <span
                   className={`flex items-center gap-1.5 font-bold px-2 py-0.5 rounded bg-black/20 ${getStatusColor(
-                    status
+                    status,
                   )}`}
                 >
                   {status === 0 ? (
@@ -451,7 +441,7 @@ export const RequestModule = () => {
                       return Prism.highlight(
                         code,
                         Prism.languages.json,
-                        "json"
+                        "json",
                       );
                     } catch {
                       return code.replace(/</g, "&lt;");
