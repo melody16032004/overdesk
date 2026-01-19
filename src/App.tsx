@@ -9,13 +9,12 @@ import { ToastSystem } from "./components/ui/ToastSystem";
 import { loadFromDisk } from "./utils/storage"; // 👈 IMPORT MỚI
 import { Dashboard } from "./components/features/dashboard/Dashboard";
 import { ScreenShareEngine } from "./components/features/dashboard/components/ScreenShareEngine";
-import { NoteModule } from "./components/features/dashboard/components/NoteModule";
-import { TaskModule } from "./components/features/dashboard/components/TaskModule";
-import { TimerModule } from "./components/features/dashboard/components/TimerModule";
+import { NoteModule } from "./components/features/dashboard/modules/note_module/NoteModule";
+import { TaskModule } from "./components/features/dashboard/modules/task_module/TaskModule";
+import { TimerModule } from "./components/features/dashboard/modules/focus_module/TimerModule";
 import { CalcModule } from "./components/features/dashboard/components/CalcModule";
 import { TranslateModule } from "./components/features/dashboard/components/TranslateModule";
 import { MapModule } from "./components/features/dashboard/components/MapModule";
-import { SettingsModule } from "./components/features/dashboard/components/SettingsModule";
 import { WeatherModule } from "./components/features/dashboard/components/WeatherModule";
 import { QrCodeModule } from "./components/features/dashboard/components/QrCodeModule";
 import { CryptoModule } from "./components/features/dashboard/components/CryptoModule";
@@ -28,20 +27,20 @@ import { WhiteboardModule } from "./components/features/dashboard/components/Whi
 import { ScreenCaptureModule } from "./components/features/dashboard/components/ScreenCaptureModule";
 import { RecordModule } from "./components/features/dashboard/components/RecordModule";
 import { ConverterModule } from "./components/features/dashboard/components/ConverterModule";
-import { SystemInfoModule } from "./components/features/dashboard/components/SystemInfoModule";
+import { SystemInfoModule } from "./components/features/dashboard/modules/system_info_module/SystemInfoModule";
 import { SpeedTestModule } from "./components/features/dashboard/components/SpeedTestModule";
-import { ShutdownModule } from "./components/features/dashboard/components/ShutdownModule";
-import { CodeModule } from "./components/features/dashboard/components/CodeModule";
-import { MarkdownModule } from "./components/features/dashboard/components/MarkdownModule";
-import { GitModule } from "./components/features/dashboard/components/GitModule";
+import { ShutdownModule } from "./components/features/dashboard/modules/power_module/ShutdownModule";
+import { CodeModule } from "./components/features/dashboard/modules/code_module/CodeModule";
+import { MarkdownModule } from "./components/features/dashboard/modules/markdown_module/MarkdownModule";
+import { GitModule } from "./components/features/dashboard/modules/git_module/GitModule";
 import { BudgetModule } from "./components/features/dashboard/components/BudgetModule";
-import { JsonModule } from "./components/features/dashboard/components/JsonModule";
+import { JsonModule } from "./components/features/dashboard/modules/json_module/JsonModule";
 import { RequestModule } from "./components/features/dashboard/components/RequestModule";
 import { RegexModule } from "./components/features/dashboard/components/RegexModule";
 import { GenDataModule } from "./components/features/dashboard/components/GenDataModule";
-import { CalendarModule } from "./components/features/dashboard/components/CalendarModule";
+import { CalendarModule } from "./components/features/dashboard/modules/calendar_module/CalendarModule";
 import { SnippetModule } from "./components/features/dashboard/components/SnippetModule";
-import { JsonToolsModule } from "./components/features/dashboard/components/JsonToolsModule";
+import { JsonToolsModule } from "./components/features/dashboard/modules/json_tool_module/JsonToolsModule";
 import { JwtModule } from "./components/features/dashboard/components/JwtModule";
 import { DesignModule } from "./components/features/dashboard/components/DesignModule";
 import { TypographyModule } from "./components/features/dashboard/components/TypographyModule";
@@ -54,8 +53,8 @@ import { LoanModule } from "./components/features/dashboard/components/LoanModul
 import { BreathingModule } from "./components/features/dashboard/components/BreathingModule";
 import { WaterBodyModule } from "./components/features/dashboard/components/WaterBodyModule";
 import { SpeedReaderModule } from "./components/features/dashboard/components/SpeedReaderModule";
-import { PdfModule } from "./components/features/dashboard/components/PdfModule";
-import { SignatureModule } from "./components/features/dashboard/components/SignatureModule";
+import { PdfModule } from "./components/features/dashboard/modules/pdf_module/PdfModule";
+import { SignatureModule } from "./components/features/dashboard/modules/signature_module/SignatureModule";
 import { ImageCompressorModule } from "./components/features/dashboard/components/ImageCompressorModule";
 import { DecisionWheelModule } from "./components/features/dashboard/components/DecisionWheelModule";
 import { RecipeFinderModule } from "./components/features/dashboard/components/RecipeFinderModule";
@@ -63,7 +62,7 @@ import { MysticModule } from "./components/features/dashboard/components/MysticM
 import { FacebookToolsModule } from "./components/features/dashboard/components/FacebookToolsModule";
 import { DiceRollerModule } from "./components/features/dashboard/components/DiceRollerModule";
 import { GoalTrackerModule } from "./components/features/dashboard/components/GoalTrackerModule";
-import { TableCreatorModule } from "./components/features/dashboard/components/TableCreatorModule";
+import { TableCreatorModule } from "./components/features/dashboard/modules/table_module/TableCreatorModule";
 import { AIChatModule } from "./components/features/dashboard/components/AIChatModule";
 import { TesterModule } from "./components/features/dashboard/components/TesterModule";
 import { TestScriptModule } from "./components/features/dashboard/components/TestScriptModule";
@@ -71,7 +70,7 @@ import { BugReportModule } from "./components/features/dashboard/components/BugR
 import { ResponsiveViewerModule } from "./components/features/dashboard/components/ResponsiveViewerModule";
 import { LibraryModule } from "./components/features/dashboard/components/LibraryModule";
 import { PianoModule } from "./components/features/dashboard/components/PianoModule";
-import { TerminalModule } from "./components/features/dashboard/components/TerminalModule";
+import { TerminalModule } from "./components/features/dashboard/modules/terminal_module/TerminalModule";
 import { WikiModule } from "./components/features/dashboard/components/WikiModule";
 import { GameModule } from "./components/features/dashboard/components/GameModule";
 import { RPGModule } from "./components/features/dashboard/components/RPGModule";
@@ -80,12 +79,13 @@ import { PvzGameModule } from "./components/features/dashboard/components/PvzGam
 import { MangaModule } from "./components/features/dashboard/components/MangaModule";
 import { NovelEditorModule } from "./components/features/dashboard/components/NovelEditorModule";
 import { UIBuilderModule } from "./components/features/dashboard/components/UIBuilderModule";
-import { DatabaseModule } from "./components/features/dashboard/components/DatabaseModule";
-import { ERDiagramModule } from "./components/features/dashboard/components/ERDiagramModule";
+import { DatabaseModule } from "./components/features/dashboard/modules/database_module/DatabaseModule";
+import { ERDiagramModule } from "./components/features/dashboard/modules/er_diagram_module/ERDiagramModule";
 import { MobileConnect } from "./components/features/dashboard/components/MobileConnect";
 import { PhoneModule } from "./components/features/dashboard/components/PhoneModule";
 import { MobileMirror } from "./components/features/dashboard/components/MobileMirror";
 import { ScreenMirrorModule } from "./components/features/dashboard/components/ScreenMirrorModule";
+import { SettingsModule } from "./components/features/dashboard/modules/settings_module/SettingsModule";
 
 const SIZES = {
   PANEL: new LogicalSize(513, window.screen.availHeight),
