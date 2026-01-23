@@ -210,7 +210,7 @@ export const PhoneModule = () => {
       const xhr = new XMLHttpRequest();
       xhr.open(
         "POST",
-        `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/auto/upload`
+        `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/auto/upload`,
       );
       xhr.upload.onprogress = (event) => {
         if (event.lengthComputable) {
@@ -403,7 +403,7 @@ export const PhoneModule = () => {
                     }`}
                   >
                     <div
-                      className={`max-w-[80%] p-3 rounded-2xl text-sm shadow-md ${
+                      className={`max-w-[80%] p-3 rounded-2xl text-sm break-words shadow-md ${
                         item.from === "me"
                           ? "bg-blue-600 text-white rounded-br-none"
                           : "bg-zinc-800 text-zinc-200 rounded-bl-none border border-white/5"

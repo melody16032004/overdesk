@@ -42,9 +42,9 @@ import { CalendarModule } from "./components/features/dashboard/modules/calendar
 import { SnippetModule } from "./components/features/dashboard/modules/snippet_module/SnippetModule";
 import { JsonToolsModule } from "./components/features/dashboard/modules/json_tool_module/JsonToolsModule";
 import { JwtModule } from "./components/features/dashboard/modules/jwt_module/JwtModule";
-import { DesignModule } from "./components/features/dashboard/components/DesignModule";
-import { TypographyModule } from "./components/features/dashboard/components/TypographyModule";
-import { IconPickerModule } from "./components/features/dashboard/components/IconPickerModule";
+import { DesignModule } from "./components/features/dashboard/modules/design_module/DesignModule";
+import { TypographyModule } from "./components/features/dashboard/modules/typography_module/TypographyModule";
+import { IconPickerModule } from "./components/features/dashboard/modules/icon_picker_module/IconPickerModule";
 import { CronDockerModule } from "./components/features/dashboard/modules/devops_module/CronDockerModule";
 import { FileExplorerModule } from "./components/features/dashboard/modules/explorer_module/FileExplorerModule";
 import { FamilyTreeModule } from "./components/features/dashboard/components/FamilyTreeModule";
@@ -59,7 +59,7 @@ import { ImageCompressorModule } from "./components/features/dashboard/component
 import { DecisionWheelModule } from "./components/features/dashboard/components/DecisionWheelModule";
 import { RecipeFinderModule } from "./components/features/dashboard/components/RecipeFinderModule";
 import { MysticModule } from "./components/features/dashboard/components/MysticModule";
-import { FacebookToolsModule } from "./components/features/dashboard/components/FacebookToolsModule";
+import { FacebookToolsModule } from "./components/features/dashboard/modules/fb_module/FacebookToolsModule";
 import { DiceRollerModule } from "./components/features/dashboard/components/DiceRollerModule";
 import { GoalTrackerModule } from "./components/features/dashboard/components/GoalTrackerModule";
 import { TableCreatorModule } from "./components/features/dashboard/modules/table_module/TableCreatorModule";
@@ -67,7 +67,7 @@ import { AIChatModule } from "./components/features/dashboard/components/AIChatM
 import { TesterModule } from "./components/features/dashboard/components/TesterModule";
 import { TestScriptModule } from "./components/features/dashboard/components/TestScriptModule";
 import { BugReportModule } from "./components/features/dashboard/components/BugReportModule";
-import { ResponsiveViewerModule } from "./components/features/dashboard/components/ResponsiveViewerModule";
+import { ResponsiveViewerModule } from "./components/features/dashboard/modules/responsive_view_module/ResponsiveViewerModule";
 import { LibraryModule } from "./components/features/dashboard/modules/library_module/LibraryModule";
 import { PianoModule } from "./components/features/dashboard/components/PianoModule";
 import { TerminalModule } from "./components/features/dashboard/modules/terminal_module/TerminalModule";
@@ -78,7 +78,7 @@ import { TowerDefenseModule } from "./components/features/dashboard/components/T
 import { PvzGameModule } from "./components/features/dashboard/components/PvzGameModule";
 import { MangaModule } from "./components/features/dashboard/components/MangaModule";
 import { NovelEditorModule } from "./components/features/dashboard/components/NovelEditorModule";
-import { UIBuilderModule } from "./components/features/dashboard/components/UIBuilderModule";
+import { UIBuilderModule } from "./components/features/dashboard/modules/ui_builder_module/UIBuilderModule";
 import { DatabaseModule } from "./components/features/dashboard/modules/database_module/DatabaseModule";
 import { ERDiagramModule } from "./components/features/dashboard/modules/er_diagram_module/ERDiagramModule";
 import { MobileConnect } from "./components/features/dashboard/components/MobileConnect";
@@ -86,10 +86,19 @@ import { PhoneModule } from "./components/features/dashboard/components/PhoneMod
 import { MobileMirror } from "./components/features/dashboard/components/MobileMirror";
 import { ScreenMirrorModule } from "./components/features/dashboard/components/ScreenMirrorModule";
 import { SettingsModule } from "./components/features/dashboard/modules/settings_module/SettingsModule";
+import { Command } from "@tauri-apps/plugin-shell";
 
 const SIZES = {
   PANEL: new LogicalSize(513, window.screen.availHeight),
   BUBBLE: new LogicalSize(80, 80),
+};
+
+// Hàm kiểm tra xem có phải đang chạy trong Tauri không
+const isTauri = () => {
+  return (
+    typeof window !== "undefined" &&
+    (window as any).__TAURI_INTERNALS__ !== undefined
+  );
 };
 
 function App() {
@@ -110,7 +119,8 @@ function App() {
     useAppStore();
   const [standaloneApp, setStandaloneApp] = useState<string | null>(null);
 
-  const appWindow = getCurrentWindow();
+  // const appWindow = getCurrentWindow();
+  const appWindow = isTauri() ? getCurrentWindow() : null;
 
   // --- 1. KHỞI TẠO APP (Chạy 1 lần duy nhất) ---
   useEffect(() => {
@@ -134,11 +144,44 @@ function App() {
       }
 
       // D. Hiện cửa sổ App (Sau khi đã load xong mọi thứ)
-      await appWindow.show();
+      if (appWindow) {
+        await appWindow.show();
+      }
     };
 
     initApp();
   }, []); // Dependency rỗng -> Chỉ chạy lúc Mount
+
+  // --- [MỚI] KHỞI ĐỘNG SERVER LAN ---
+  useEffect(() => {
+    const startLanServer = async () => {
+      if (!isTauri()) return;
+
+      try {
+        const command = Command.sidecar("binaries/lan-server");
+
+        command.on("close", (data) =>
+          console.log(`[Sidecar] Server tắt: ${data.code}`),
+        );
+        command.on("error", (error) =>
+          console.error(`[Sidecar] Lỗi: ${error}`),
+        );
+
+        const child = await command.spawn();
+        console.log("✅ Server LAN P2P đã chạy ngầm, PID:", child.pid);
+      } catch (err) {
+        // Lỗi này thường hiện ra trong quá trình dev (npm run tauri dev) nếu chưa build binary
+        // Nhưng khi build ra file .exe/.msi thì sẽ chạy ngon.
+        console.warn(
+          "⚠️ Sidecar chưa chạy (Có thể do đang ở chế độ Dev hoặc chưa pkg server):",
+          err,
+        );
+      }
+    };
+
+    startLanServer();
+  }, []);
+  // ------------------------------------
 
   // --- 2. THEME EFFECT (Chạy khi đổi theme) ---
   useEffect(() => {
@@ -153,6 +196,8 @@ function App() {
   // --- 3. RESIZE EFFECT (Chạy khi đổi chế độ view) ---
   useEffect(() => {
     const updateSize = async () => {
+      if (!appWindow) return;
+
       if (viewMode === "bubble") {
         await appWindow.setSize(SIZES.BUBBLE);
       } else {
@@ -235,11 +280,11 @@ function App() {
         {standaloneApp === "reader" && <SpeedReaderModule />}
         {standaloneApp === "pdf" && <PdfModule />}
         {standaloneApp === "sign" && <SignatureModule />}
-        {standaloneApp === "img-compress" && <ImageCompressorModule />}
+        {standaloneApp === "img_compress" && <ImageCompressorModule />}
         {standaloneApp === "wheel" && <DecisionWheelModule />}
         {standaloneApp === "recipe" && <RecipeFinderModule />}
         {standaloneApp === "mystic" && <MysticModule />}
-        {standaloneApp === "fb-tools" && <FacebookToolsModule />}
+        {standaloneApp === "fb_tools" && <FacebookToolsModule />}
         {standaloneApp === "dice" && <DiceRollerModule />}
         {standaloneApp === "goals" && <GoalTrackerModule />}
         {standaloneApp === "table" && <TableCreatorModule />}
@@ -250,7 +295,7 @@ function App() {
         {standaloneApp === "testcase" && (
           <TestScriptModule onSwitchApp={() => setStandaloneApp("tester")} />
         )}
-        {standaloneApp === "bug-report" && <BugReportModule />}
+        {standaloneApp === "bug_report" && <BugReportModule />}
         {standaloneApp === "responsive" && <ResponsiveViewerModule />}
         {standaloneApp === "library" && <LibraryModule />}
         {standaloneApp === "piano" && <PianoModule />}
@@ -265,6 +310,7 @@ function App() {
         {standaloneApp === "uibuilder" && <UIBuilderModule />}
         {standaloneApp === "phone" && <PhoneModule />}
         {standaloneApp === "mirror" && <ScreenMirrorModule />}
+        {standaloneApp === "responsive" && <ResponsiveViewerModule />}
       </div>
     );
   }

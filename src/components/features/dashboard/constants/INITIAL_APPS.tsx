@@ -83,6 +83,10 @@ import {
   FileSpreadsheet,
   Info,
   Scale,
+  Atom,
+  Telescope,
+  Star,
+  ScreenShare,
 } from "lucide-react";
 import { DashboardApp } from "../../../../types/dashboard";
 
@@ -415,7 +419,7 @@ export const INITIAL_APPS: DashboardApp[] = [
     desc: "Mobile Tester",
   },
   {
-    id: "fb-tools",
+    id: "fb_tools",
     label: "Facebook Studio",
     icon: Facebook,
     color:
@@ -423,7 +427,7 @@ export const INITIAL_APPS: DashboardApp[] = [
     desc: "Mockup & Fonts",
   },
   {
-    id: "photo-booth",
+    id: "photo_booth",
     label: "Photo Booth",
     icon: ImagePlay,
     color:
@@ -449,7 +453,7 @@ export const INITIAL_APPS: DashboardApp[] = [
     desc: "Test Script Manager",
   },
   {
-    id: "bug-report",
+    id: "bug_report",
     label: "Bug Report",
     icon: Bug,
     color:
@@ -508,7 +512,7 @@ export const INITIAL_APPS: DashboardApp[] = [
     desc: "Lorem & Fake Data",
   },
   {
-    id: "img-compress",
+    id: "img_compress",
     label: "Image Tools",
     icon: ImageIcon,
     color:
@@ -574,7 +578,7 @@ export const INITIAL_APPS: DashboardApp[] = [
   {
     id: "share",
     label: "Share",
-    icon: Cast,
+    icon: ScreenShare,
     color:
       "text-cyan-500 bg-cyan-500/10 border-cyan-200 dark:border-cyan-500/20",
     desc: "Screen Mirror",
@@ -602,6 +606,30 @@ export const INITIAL_APPS: DashboardApp[] = [
     color:
       "text-cyan-500 bg-cyan-500/10 border-cyan-200 dark:border-cyan-500/20",
     desc: "Voice Memos",
+  },
+  {
+    id: "periodic",
+    label: "Periodic Table",
+    icon: Atom,
+    color:
+      "text-cyan-500 bg-cyan-500/10 border-cyan-200 dark:border-cyan-500/20",
+    desc: "Elements Info",
+  },
+  {
+    id: "space",
+    label: "Space Observatory",
+    icon: Telescope,
+    color:
+      "text-cyan-500 bg-cyan-500/10 border-cyan-200 dark:border-cyan-500/20",
+    desc: "Explore Universe",
+  },
+  {
+    id: "stargazer",
+    label: "Stargazer",
+    icon: Star,
+    color:
+      "text-cyan-500 bg-cyan-500/10 border-cyan-200 dark:border-cyan-500/20",
+    desc: "Real-time Sky Map",
   },
 
   // --- GROUP 7: FINANCE & LIFESTYLE (Màu Emerald - Xanh ngọc) ---

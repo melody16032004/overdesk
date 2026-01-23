@@ -37,145 +37,71 @@ import {
   Minimize2,
 } from "lucide-react";
 import clsx from "clsx";
-
-// --- TYPES & CONSTANTS ---
-type ComponentType = "button" | "input" | "card" | "badge" | "alert" | "custom";
-type Size = "xs" | "sm" | "md" | "lg" | "xl";
-type Radius = "none" | "sm" | "md" | "lg" | "full";
-type Shadow = "none" | "sm" | "md" | "lg" | "xl" | "2xl" | "inner";
-type LayoutMode = "horizontal" | "vertical";
-
-interface ComponentConfig {
-  id: string;
-  name: string;
-  type: ComponentType;
-  text: string;
-  color: string;
-  variant: "solid" | "outline" | "ghost" | "soft";
-  size: Size;
-  radius: Radius;
-  shadow: Shadow;
-  fullWidth: boolean;
-  withIcon: boolean;
-  disabled: boolean;
-  customCode?: string;
-  customClasses?: string;
-}
-
-const COLORS = [
-  "slate",
-  "gray",
-  "zinc",
-  "neutral",
-  "stone",
-  "red",
-  "orange",
-  "amber",
-  "yellow",
-  "lime",
-  "green",
-  "emerald",
-  "teal",
-  "cyan",
-  "sky",
-  "blue",
-  "indigo",
-  "violet",
-  "purple",
-  "fuchsia",
-  "pink",
-  "rose",
-];
-const SIZES: Record<Size, string> = {
-  xs: "p-2 text-xs",
-  sm: "p-3 text-sm",
-  md: "p-4 text-base",
-  lg: "p-6 text-lg",
-  xl: "p-8 text-xl",
-};
-const ELEMENT_SIZES: Record<Size, string> = {
-  xs: "px-2.5 py-1.5 text-xs",
-  sm: "px-3 py-2 text-sm",
-  md: "px-4 py-2.5 text-sm",
-  lg: "px-5 py-3 text-base",
-  xl: "px-6 py-3.5 text-lg",
-};
-const RADIUS: Record<Radius, string> = {
-  none: "rounded-none",
-  sm: "rounded",
-  md: "rounded-md",
-  lg: "rounded-lg",
-  full: "rounded-full",
-};
-const SHADOWS: Record<Shadow, string> = {
-  none: "shadow-none",
-  sm: "shadow-sm",
-  md: "shadow",
-  lg: "shadow-md",
-  xl: "shadow-lg",
-  "2xl": "shadow-xl",
-  inner: "shadow-inner",
-};
-const STORAGE_KEY = "ui_builder_library_v5";
-
-// --- HELPER: Code Formatter ---
-const formatCode = (code: string) => {
-  try {
-    let formatted = "";
-    let indentLevel = 0;
-    const indentString = "  ";
-    const cleanCode = code.replace(/>\s+</g, "><").trim();
-    const tokens = cleanCode.split(/(<[^>]+>)/g).filter(Boolean);
-    tokens.forEach((token) => {
-      if (token.match(/^<\//)) {
-        indentLevel = Math.max(0, indentLevel - 1);
-        formatted += "\n" + indentString.repeat(indentLevel) + token;
-      } else if (
-        token.match(/^<.*>$/) &&
-        !token.match(/\/>$/) &&
-        !token.match(/^<!/)
-      ) {
-        formatted += "\n" + indentString.repeat(indentLevel) + token;
-        indentLevel++;
-      } else if (token.match(/^<.*\/>$/)) {
-        formatted += "\n" + indentString.repeat(indentLevel) + token;
-      } else {
-        const text = token.trim();
-        if (text) formatted += "\n" + indentString.repeat(indentLevel) + text;
-      }
-    });
-    return formatted.trim();
-  } catch (e) {
-    return code;
-  }
-};
+import {
+  ComponentConfig,
+  ComponentType,
+  LayoutMode,
+  Radius,
+  Shadow,
+  Size,
+} from "./types/ui_builder_type";
+import {
+  COLORS,
+  RADIUS,
+  SHADOWS,
+  SIZES,
+  STORAGE_KEY,
+} from "./constants/ui_builder_const";
+import {
+  formatCode,
+  generateClasses,
+  generateReactCode,
+} from "./helper/ui_builder_helper";
+import { ControlSection } from "./components/ControlSection";
+import { useToastStore } from "../../../../../stores/useToastStore";
 
 export const UIBuilderModule = () => {
-  // --- STATE ---
-  const [activeTab, setActiveTab] = useState<"editor" | "library">("editor");
-  const [savedComponents, setSavedComponents] = useState<ComponentConfig[]>([]);
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  // ==================================================================================
+  // 1. STATE MANAGEMENT
+  // ==================================================================================
 
-  // Preview Settings
+  // --- UI & Tabs ---
+  const [activeTab, setActiveTab] = useState<"editor" | "library">("editor");
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [previewMode, setPreviewMode] = useState<"light" | "dark">("dark");
   const [showGrid, setShowGrid] = useState(true);
   const [showToolbar, setShowToolbar] = useState(true);
-  const [isFullscreen, setIsFullscreen] = useState(false); // [NEW] Fullscreen State
-
-  // Transform & Interaction
-  const [transform, setTransform] = useState({ x: 0, y: 0, scale: 1 });
-  const [isDragging, setIsDragging] = useState(false);
-  const dragStart = useRef({ x: 0, y: 0 });
-  const [isInteractMode, setIsInteractMode] = useState(false);
-
-  // Refs for Smart Reset
-  const containerRef = useRef<HTMLDivElement>(null); // Khung chứa
-  const contentRef = useRef<HTMLDivElement>(null); // Nội dung component
-
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const [layoutMode, setLayoutMode] = useState<LayoutMode>("vertical");
   const [splitRatio, setSplitRatio] = useState(80);
+  const { showToast } = useToastStore();
+
+  // --- Data & Storage ---
+  const [savedComponents, setSavedComponents] = useState<ComponentConfig[]>(
+    () => {
+      try {
+        if (typeof window !== "undefined") {
+          const saved = localStorage.getItem(STORAGE_KEY);
+          return saved ? JSON.parse(saved) : [];
+        }
+        return [];
+      } catch (e) {
+        showToast(`Lỗi đọc dữ liệu LocalStorage: ${e}`, "error");
+        return [];
+      }
+    },
+  );
+
+  // --- Interaction (Pan/Zoom) ---
+  const [transform, setTransform] = useState({ x: 0, y: 0, scale: 1 });
+  const [isDragging, setIsDragging] = useState(false);
+  const [isInteractMode, setIsInteractMode] = useState(false);
+  const dragStart = useRef({ x: 0, y: 0 });
+  const containerRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
   const isResizing = useRef(false);
 
+  // --- Component Configuration ---
   const [config, setConfig] = useState<ComponentConfig>({
     id: "draft",
     name: "New Component",
@@ -192,17 +118,24 @@ export const UIBuilderModule = () => {
     customClasses: "",
   });
 
+  // --- Code Generation & Editing ---
   const [generatedCode, setGeneratedCode] = useState("");
   const [isManualEditing, setIsManualEditing] = useState(false);
   const [previewHTML, setPreviewHTML] = useState("");
   const [copied, setCopied] = useState(false);
+
+  // --- Modals ---
   const [modalType, setModalType] = useState<
     "save_option" | "delete" | "edit_info" | null
   >(null);
   const [targetItem, setTargetItem] = useState<ComponentConfig | null>(null);
   const [inputName, setInputName] = useState("");
 
-  // --- INIT TAILWIND ---
+  // ==================================================================================
+  // 2. EFFECTS
+  // ==================================================================================
+
+  // Init Tailwind
   useEffect(() => {
     if (!document.getElementById("tw-cdn")) {
       const script = document.createElement("script");
@@ -217,73 +150,16 @@ export const UIBuilderModule = () => {
     }
   }, []);
 
+  // Handle Resize Window
   useEffect(() => {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved)
-      try {
-        setSavedComponents(JSON.parse(saved));
-      } catch (e) {}
-  }, []);
-  useEffect(() => {
-    const handleResize = () => {
+    const handleResize = () =>
       setLayoutMode(window.innerWidth >= 1024 ? "horizontal" : "vertical");
-    };
     handleResize();
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  // --- GENERATOR ---
-  const generateClasses = (c: ComponentConfig) => {
-    if (c.type === "custom")
-      return c.customClasses ? c.customClasses.trim() : "";
-    let classes = `transition-all duration-200 ${RADIUS[c.radius]} ${
-      SHADOWS[c.shadow]
-    } `;
-    const isElement =
-      c.type === "button" || c.type === "input" || c.type === "badge";
-    classes += (isElement ? ELEMENT_SIZES[c.size] : SIZES[c.size]) + " ";
-    if (c.type === "button" || c.type === "badge") {
-      classes +=
-        "inline-flex items-center justify-center gap-2 font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 ";
-      classes += `focus:ring-${c.color}-500 dark:focus:ring-offset-zinc-900 `;
-      if (c.fullWidth && c.type === "button") classes += "w-full ";
-      if (c.variant === "solid")
-        classes += `bg-${c.color}-600 hover:bg-${c.color}-700 text-white border border-transparent dark:bg-${c.color}-500 dark:hover:bg-${c.color}-600`;
-      else if (c.variant === "outline")
-        classes += `bg-transparent border border-${c.color}-600 text-${c.color}-600 hover:bg-${c.color}-50 dark:border-${c.color}-400 dark:text-${c.color}-400 dark:hover:bg-${c.color}-950`;
-      else if (c.variant === "ghost")
-        classes += `bg-transparent hover:bg-${c.color}-100 text-${c.color}-600 border border-transparent dark:text-${c.color}-400 dark:hover:bg-${c.color}-900/30`;
-      else if (c.variant === "soft")
-        classes += `bg-${c.color}-100 hover:bg-${c.color}-200 text-${c.color}-700 border border-transparent dark:bg-${c.color}-900/50 dark:text-${c.color}-300 dark:hover:bg-${c.color}-900/70`;
-    } else if (c.type === "input") {
-      classes += `w-full border border-slate-300 focus:border-${c.color}-500 focus:ring-1 focus:ring-${c.color}-500 outline-none bg-white text-slate-900 placeholder:text-slate-400 dark:bg-zinc-900 dark:border-white/10 dark:text-white dark:placeholder:text-zinc-500`;
-    } else if (c.type === "card") {
-      classes += `bg-white border border-slate-200 dark:bg-zinc-900 dark:border-white/10 dark:text-slate-200 `;
-    } else if (c.type === "alert") {
-      classes += `border-l-4 bg-${c.color}-50 border-${c.color}-500 text-${c.color}-700 flex items-start gap-3 dark:bg-${c.color}-950/30 dark:text-${c.color}-300`;
-    }
-    if (c.customClasses) classes += ` ${c.customClasses}`;
-    return classes.trim().replace(/\s+/g, " ");
-  };
-
-  const generateReactCode = (c: ComponentConfig) => {
-    const className = generateClasses(c);
-    if (c.type === "custom")
-      return `<div className="${className}">\n  {/* Paste code here */}\n</div>`;
-    if (c.type === "button")
-      return `<button className="${className}" {...props}>\n{icon && <span className="mr-1">{icon}</span>}\n${c.text}\n</button>`;
-    if (c.type === "input")
-      return `<input className="${className}" placeholder="${c.text}" {...props} />`;
-    if (c.type === "badge")
-      return `<span className="${className}">${c.text}</span>`;
-    if (c.type === "alert")
-      return `<div className="${className}">\n<strong>Thông báo:</strong> ${c.text}\n</div>`;
-    if (c.type === "card")
-      return `<div className="${className}">\n<h3>${c.text}</h3>\n<p>Content goes here...</p>\n</div>`;
-    return `<div className="${className}">...</div>`;
-  };
-
+  // Generate Code from Config
   useEffect(() => {
     if (config.type === "custom" && isManualEditing) return;
     const newClasses = generateClasses(config);
@@ -291,107 +167,21 @@ export const UIBuilderModule = () => {
       const rawCode = generateReactCode(config);
       setGeneratedCode(formatCode(rawCode));
     } else {
-      setGeneratedCode((prevCode) => {
-        return prevCode.replace(
+      setGeneratedCode((prevCode) =>
+        prevCode.replace(
           /(className=["'])([\s\S]*?)(["'])/,
-          `$1${newClasses}$3`
-        );
-      });
+          `$1${newClasses}$3`,
+        ),
+      );
     }
   }, [config]);
 
+  // Update Preview HTML
   useEffect(() => {
     updateHTMLPreview(generatedCode);
   }, [generatedCode]);
 
-  const updateHTMLPreview = (code: string) => {
-    try {
-      if (!code) return;
-      let clean = code.replace(/\{\/\*[\s\S]*?\*\/\}/g, "");
-      clean = clean.replace(/<>/g, "<div>").replace(/<\/>/g, "</div>");
-      clean = clean
-        .replace(/<React\.Fragment>/g, "<div>")
-        .replace(/<\/React\.Fragment>/g, "</div>");
-      clean = clean.replace(/className=(["'])([\s\S]*?)\1/g, 'class="$2"');
-      clean = clean.replace(/on[A-Z][a-zA-Z]+=\{[^}]+\}/g, "");
-      clean = clean.replace(/style=\{\{[^}]+\}\}/g, "");
-      clean = clean.replace(/\{children\}/g, "Custom Content");
-      clean = clean.replace(/>\s*\{[^}]+\}\s*</g, "><");
-      setPreviewHTML(clean);
-    } catch (e) {
-      console.error("Preview Error:", e);
-    }
-  };
-
-  // --- [NEW] SMART RESET (AUTO FIT) FUNCTION ---
-  const handleSmartReset = () => {
-    if (!containerRef.current || !contentRef.current) return;
-
-    // 1. Lấy kích thước khung nhìn
-    const containerRect = containerRef.current.getBoundingClientRect();
-
-    // 2. Lấy kích thước thật của component (offsetWidth lấy size chưa scale)
-    const contentWidth = contentRef.current.offsetWidth || 300;
-    const contentHeight = contentRef.current.offsetHeight || 200;
-
-    // 3. Tính toán tỷ lệ scale để vừa khít màn hình (trừ đi 80px padding)
-    const padding = 80;
-    const availableWidth = containerRect.width - padding;
-    const availableHeight = containerRect.height - padding;
-
-    const scaleX = availableWidth / contentWidth;
-    const scaleY = availableHeight / contentHeight;
-
-    // Chọn tỷ lệ nhỏ hơn để đảm bảo lọt lòng, nhưng không phóng to quá 100% (scale 1)
-    // Nếu bạn muốn nó tự phóng to nếu hình quá nhỏ, hãy bỏ Math.min(..., 1)
-    const newScale = Math.min(scaleX, scaleY, 1);
-
-    // Reset về tâm (0,0) với scale mới
-    setTransform({ x: 0, y: 0, scale: newScale });
-  };
-
-  // --- MOUSE HANDLERS ---
-  const handleMouseDown = (e: React.MouseEvent) => {
-    if (isInteractMode && e.button === 0) return;
-    if (e.button === 2 || (e.button === 0 && !isInteractMode)) {
-      e.preventDefault();
-      setIsDragging(true);
-      dragStart.current = {
-        x: e.clientX - transform.x,
-        y: e.clientY - transform.y,
-      };
-    } else if (e.button === 1) {
-      // Chuột giữa trigger Smart Reset
-      e.preventDefault();
-      handleSmartReset();
-    }
-  };
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (isDragging) {
-      e.preventDefault();
-      setTransform((prev) => ({
-        ...prev,
-        x: e.clientX - dragStart.current.x,
-        y: e.clientY - dragStart.current.y,
-      }));
-    }
-  };
-  const handleMouseUp = () => setIsDragging(false);
-  const handleWheel = (e: React.WheelEvent) => {
-    if (isInteractMode) return;
-    e.preventDefault();
-    const scaleAmount = -e.deltaY * 0.001;
-    const newScale = Math.min(Math.max(0.1, transform.scale + scaleAmount), 5);
-    setTransform((prev) => ({ ...prev, scale: newScale }));
-  };
-  const handleContextMenu = (e: React.MouseEvent) => {
-    if (!isInteractMode) {
-      e.preventDefault();
-      return false;
-    }
-  };
-
-  // --- RESIZE ---
+  // Handle Split Resize
   useEffect(() => {
     const handleResizeMove = (e: MouseEvent) => {
       if (!isResizing.current) return;
@@ -417,11 +207,111 @@ export const UIBuilderModule = () => {
     };
   }, [layoutMode]);
 
-  // --- ACTIONS ---
+  // ==================================================================================
+  // 3. HELPER FUNCTIONS
+  // ==================================================================================
+
+  const updateHTMLPreview = (code: string) => {
+    try {
+      if (!code) return;
+      let clean = code
+        .replace(/\{\/\*[\s\S]*?\*\/\}/g, "")
+        .replace(/<>/g, "<div>")
+        .replace(/<\/>/g, "</div>");
+      clean = clean
+        .replace(/<React\.Fragment>/g, "<div>")
+        .replace(/<\/React\.Fragment>/g, "</div>");
+      clean = clean.replace(/className=(["'])([\s\S]*?)\1/g, 'class="$2"');
+      clean = clean
+        .replace(/on[A-Z][a-zA-Z]+=\{[^}]+\}/g, "")
+        .replace(/style=\{\{[^}]+\}\}/g, "");
+      clean = clean
+        .replace(/\{children\}/g, "Custom Content")
+        .replace(/>\s*\{[^}]+\}\s*</g, "><");
+      setPreviewHTML(clean);
+    } catch (e) {
+      console.error("Preview Error:", e);
+    }
+  };
+
+  const handleSmartReset = () => {
+    if (!containerRef.current || !contentRef.current) return;
+    const containerRect = containerRef.current.getBoundingClientRect();
+    const contentWidth = contentRef.current.offsetWidth || 300;
+    const contentHeight = contentRef.current.offsetHeight || 200;
+    const padding = 80;
+    const scaleX = (containerRect.width - padding) / contentWidth;
+    const scaleY = (containerRect.height - padding) / contentHeight;
+    setTransform({ x: 0, y: 0, scale: Math.min(scaleX, scaleY, 1) });
+  };
+
+  // ==================================================================================
+  // 4. EVENT HANDLERS
+  // ==================================================================================
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (isInteractMode && e.button === 0) return;
+    if (e.button === 2 || (e.button === 0 && !isInteractMode)) {
+      e.preventDefault();
+      setIsDragging(true);
+      dragStart.current = {
+        x: e.clientX - transform.x,
+        y: e.clientY - transform.y,
+      };
+    } else if (e.button === 1) {
+      e.preventDefault();
+      handleSmartReset();
+    }
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (isDragging) {
+      e.preventDefault();
+      setTransform((prev) => ({
+        ...prev,
+        x: e.clientX - dragStart.current.x,
+        y: e.clientY - dragStart.current.y,
+      }));
+    }
+  };
+
+  const handleMouseUp = () => setIsDragging(false);
+
+  const handleWheel = (e: React.WheelEvent) => {
+    if (isInteractMode) return;
+    e.preventDefault();
+    const scaleAmount = -e.deltaY * 0.001;
+    setTransform((prev) => ({
+      ...prev,
+      scale: Math.min(Math.max(0.1, prev.scale + scaleAmount), 5),
+    }));
+  };
+
+  const handleContextMenu = (e: React.MouseEvent) => {
+    if (!isInteractMode) {
+      e.preventDefault();
+      return false;
+    }
+  };
+
+  // ==================================================================================
+  // 5. CRUD ACTIONS
+  // ==================================================================================
+
   const requestSave = () => {
     setInputName(config.name);
     setModalType("save_option");
   };
+  const requestDelete = (comp: ComponentConfig) => {
+    setTargetItem(comp);
+    setModalType("delete");
+  };
+  const requestEditInfo = (comp: ComponentConfig) => {
+    setTargetItem(comp);
+    setInputName(comp.name);
+    setModalType("edit_info");
+  };
+
   const executeSaveAsNew = () => {
     if (!inputName.trim()) return;
     const newId = Date.now().toString();
@@ -437,6 +327,7 @@ export const UIBuilderModule = () => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedList));
     setModalType(null);
   };
+
   const executeOverwrite = () => {
     if (config.id === "draft") return;
     const payload: ComponentConfig = {
@@ -445,17 +336,14 @@ export const UIBuilderModule = () => {
       customCode: isManualEditing ? generatedCode : undefined,
     };
     const updatedList = savedComponents.map((c) =>
-      c.id === config.id ? payload : c
+      c.id === config.id ? payload : c,
     );
     setSavedComponents(updatedList);
     setConfig((prev) => ({ ...prev, name: inputName }));
     localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedList));
     setModalType(null);
   };
-  const requestDelete = (comp: ComponentConfig) => {
-    setTargetItem(comp);
-    setModalType("delete");
-  };
+
   const executeDelete = () => {
     if (!targetItem) return;
     const updated = savedComponents.filter((c) => c.id !== targetItem.id);
@@ -464,15 +352,11 @@ export const UIBuilderModule = () => {
     setModalType(null);
     if (config.id === targetItem.id) setConfig({ ...config, id: "draft" });
   };
-  const requestEditInfo = (comp: ComponentConfig) => {
-    setTargetItem(comp);
-    setInputName(comp.name);
-    setModalType("edit_info");
-  };
+
   const executeEditInfo = () => {
     if (!targetItem || !inputName.trim()) return;
     const updated = savedComponents.map((c) =>
-      c.id === targetItem.id ? { ...c, name: inputName } : c
+      c.id === targetItem.id ? { ...c, name: inputName } : c,
     );
     setSavedComponents(updated);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
@@ -480,6 +364,7 @@ export const UIBuilderModule = () => {
       setConfig((prev) => ({ ...prev, name: inputName }));
     setModalType(null);
   };
+
   const handleLoad = (comp: ComponentConfig) => {
     if (comp.customCode) {
       setGeneratedCode(comp.customCode);
@@ -492,6 +377,7 @@ export const UIBuilderModule = () => {
     }
     setActiveTab("editor");
   };
+
   const handleRandomize = () => {
     const randomColor = COLORS[Math.floor(Math.random() * COLORS.length)];
     const randomVariant = ["solid", "outline", "ghost", "soft"][
@@ -504,25 +390,9 @@ export const UIBuilderModule = () => {
     }));
   };
 
-  const ControlSection = ({
-    title,
-    children,
-  }: {
-    title: string;
-    children: React.ReactNode;
-  }) => (
-    <div className="mb-6">
-      <div className="flex items-center gap-2 mb-3">
-        <div className="h-[1px] flex-1 bg-white/10"></div>
-        <span className="text-[10px] font-bold uppercase opacity-50 tracking-wider">
-          {title}
-        </span>
-        <div className="h-[1px] flex-1 bg-white/10"></div>
-      </div>
-      {children}
-    </div>
-  );
-
+  // ==================================================================================
+  // 6. RENDER
+  // ==================================================================================
   return (
     <div className="h-full flex flex-col bg-[#09090b] text-slate-200 font-sans overflow-hidden relative">
       <div className="h-14 px-4 border-b border-white/10 flex items-center justify-between bg-[#09090b] shrink-0 z-20">
@@ -530,13 +400,13 @@ export const UIBuilderModule = () => {
           <div className="w-8 h-8 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg flex items-center justify-center shadow-lg shadow-indigo-500/20">
             <Palette size={18} className="text-white" />
           </div>
-          <div className="hidden sm:block">
-            <h1 className="font-bold text-sm leading-none">
-              UI Factory{" "}
-              <span className="text-xs font-normal opacity-50 bg-white/10 px-1.5 py-0.5 rounded text-[10px] ml-1">
+          <div className="sm:block">
+            <div className="flex flex-col items-start justify-center leading-tight">
+              <span className="font-bold text-xs ">UI Factory </span>
+              <span className="font-normal opacity-50 bg-white/10 px-1.5 py-0.5 rounded text-[11px]">
                 Ultimate
               </span>
-            </h1>
+            </div>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -548,7 +418,7 @@ export const UIBuilderModule = () => {
                   "p-1.5 rounded-md transition-all",
                   !isInteractMode
                     ? "bg-indigo-600 text-white shadow"
-                    : "text-slate-400 hover:text-white"
+                    : "text-slate-400 hover:text-white",
                 )}
                 title="Chế độ Di chuyển (Pan/Zoom)"
               >
@@ -560,7 +430,7 @@ export const UIBuilderModule = () => {
                   "p-1.5 rounded-md transition-all",
                   isInteractMode
                     ? "bg-indigo-600 text-white shadow"
-                    : "text-slate-400 hover:text-white"
+                    : "text-slate-400 hover:text-white",
                 )}
                 title="Chế độ Tương tác (Click)"
               >
@@ -575,7 +445,7 @@ export const UIBuilderModule = () => {
                 "px-3 py-1 rounded-md text-xs font-bold transition-all",
                 activeTab === "editor"
                   ? "bg-white/10 text-white"
-                  : "text-slate-500 hover:text-slate-300"
+                  : "text-slate-500 hover:text-slate-300",
               )}
             >
               Editor
@@ -586,7 +456,7 @@ export const UIBuilderModule = () => {
                 "px-3 py-1 rounded-md text-xs font-bold transition-all",
                 activeTab === "library"
                   ? "bg-white/10 text-white"
-                  : "text-slate-500 hover:text-slate-300"
+                  : "text-slate-500 hover:text-slate-300",
               )}
             >
               Library
@@ -617,8 +487,8 @@ export const UIBuilderModule = () => {
                     "lg:static", // Chỉ chiếm vị trí trong layout (static) khi KHÔNG Fullscreen
                     isMobileMenuOpen
                       ? "translate-x-0 shadow-2xl"
-                      : "-translate-x-full lg:translate-x-0"
-                  )
+                      : "-translate-x-full lg:translate-x-0",
+                  ),
             )}
           >
             <div className="flex-1 overflow-y-auto custom-scrollbar p-5">
@@ -656,7 +526,7 @@ export const UIBuilderModule = () => {
                         "flex flex-col items-center justify-center p-3 rounded-xl border transition-all gap-1.5",
                         config.type === t.id
                           ? "bg-indigo-600 border-indigo-500 text-white shadow-lg"
-                          : "bg-white/5 border-transparent hover:bg-white/10 text-slate-400"
+                          : "bg-white/5 border-transparent hover:bg-white/10 text-slate-400",
                       )}
                     >
                       <t.icon size={16} />
@@ -704,7 +574,7 @@ export const UIBuilderModule = () => {
                                   "py-1.5 text-xs font-bold rounded-lg capitalize border",
                                   config.variant === v
                                     ? "border-indigo-500 bg-indigo-500/10 text-indigo-400"
-                                    : "border-white/5 bg-white/5 text-slate-400"
+                                    : "border-white/5 bg-white/5 text-slate-400",
                                 )}
                               >
                                 {v}
@@ -792,7 +662,7 @@ export const UIBuilderModule = () => {
                             `bg-${c}-500`,
                             config.color === c
                               ? "ring-2 ring-white scale-110 shadow-lg"
-                              : "opacity-40 hover:opacity-100 hover:scale-105"
+                              : "opacity-40 hover:opacity-100 hover:scale-105",
                           )}
                           title={c}
                         />
@@ -827,7 +697,7 @@ export const UIBuilderModule = () => {
             id="split-wrapper"
             className={clsx(
               "flex-1 flex overflow-hidden bg-[#0c0a09] relative",
-              layoutMode === "vertical" ? "flex-col" : "flex-row"
+              layoutMode === "vertical" ? "flex-col" : "flex-row",
             )}
           >
             <div
@@ -839,8 +709,8 @@ export const UIBuilderModule = () => {
                 isDragging
                   ? "cursor-grabbing"
                   : isInteractMode
-                  ? "cursor-auto"
-                  : "cursor-grab"
+                    ? "cursor-auto"
+                    : "cursor-grab",
               )}
               style={
                 isFullscreen
@@ -857,14 +727,14 @@ export const UIBuilderModule = () => {
               <div
                 className={clsx(
                   "absolute inset-0 pointer-events-none transition-colors duration-500",
-                  previewMode === "dark" ? "bg-[#0c0a09]" : "bg-slate-100"
+                  previewMode === "dark" ? "bg-[#0c0a09]" : "bg-slate-100",
                 )}
               >
                 {showGrid && (
                   <div
                     className={clsx(
                       "absolute inset-0 opacity-20",
-                      previewMode === "dark" ? "opacity-10" : "opacity-30"
+                      previewMode === "dark" ? "opacity-10" : "opacity-30",
                     )}
                     style={{
                       backgroundImage: `radial-gradient(${
@@ -882,7 +752,7 @@ export const UIBuilderModule = () => {
                   previewMode === "dark" && "dark",
                   !isInteractMode
                     ? "pointer-events-none"
-                    : "pointer-events-auto"
+                    : "pointer-events-auto",
                 )}
                 style={{
                   transform: `translate(-50%, -50%) translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})`,
@@ -909,7 +779,7 @@ export const UIBuilderModule = () => {
                     onClick={() => setIsFullscreen(!isFullscreen)}
                     className={clsx(
                       "p-2 rounded-lg transition-colors text-white/50 hover:bg-white/10 hover:text-white",
-                      isFullscreen && "text-indigo-400 bg-indigo-500/10"
+                      isFullscreen && "text-indigo-400 bg-indigo-500/10",
                     )}
                     title={
                       isFullscreen ? "Thoát toàn màn hình" : "Toàn màn hình"
@@ -929,7 +799,7 @@ export const UIBuilderModule = () => {
                       "p-2 rounded-lg transition-colors",
                       showGrid
                         ? "bg-indigo-500 text-white"
-                        : "text-white/50 hover:bg-white/10 hover:text-white"
+                        : "text-white/50 hover:bg-white/10 hover:text-white",
                     )}
                     title="Lưới"
                   >
@@ -942,7 +812,7 @@ export const UIBuilderModule = () => {
                       "p-2 rounded-lg transition-colors",
                       previewMode === "light"
                         ? "bg-white text-black"
-                        : "text-white/50 hover:bg-white/10 hover:text-white"
+                        : "text-white/50 hover:bg-white/10 hover:text-white",
                     )}
                     title="Sáng"
                   >
@@ -954,7 +824,7 @@ export const UIBuilderModule = () => {
                       "p-2 rounded-lg transition-colors",
                       previewMode === "dark"
                         ? "bg-indigo-500 text-white"
-                        : "text-white/50 hover:bg-white/10 hover:text-white"
+                        : "text-white/50 hover:bg-white/10 hover:text-white",
                     )}
                     title="Tối"
                   >
@@ -1023,7 +893,7 @@ export const UIBuilderModule = () => {
                 "bg-[#1e293b] flex items-center justify-center hover:bg-indigo-500 transition-colors z-30 group",
                 layoutMode === "horizontal"
                   ? "w-1 cursor-col-resize h-full"
-                  : "h-1 cursor-row-resize w-full"
+                  : "h-1 cursor-row-resize w-full",
               )}
               onMouseDown={() => {
                 isResizing.current = true;
@@ -1160,7 +1030,7 @@ export const UIBuilderModule = () => {
                                 "text-[10px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider",
                                 comp.type === "custom"
                                   ? "bg-purple-500/10 text-purple-400 border border-purple-500/20"
-                                  : "bg-white/5 text-slate-400 border border-white/5"
+                                  : "bg-white/5 text-slate-400 border border-white/5",
                               )}
                             >
                               {comp.type}
@@ -1227,7 +1097,7 @@ export const UIBuilderModule = () => {
                                 `bg-${comp.color}-600`,
                                 comp.variant === "outline" &&
                                   `bg-transparent border border-${comp.color}-600 text-${comp.color}-600`,
-                                "px-4 py-2 rounded-lg text-xs font-bold text-white shadow-lg"
+                                "px-4 py-2 rounded-lg text-xs font-bold text-white shadow-lg",
                               )}
                             >
                               {comp.text || "Preview"}

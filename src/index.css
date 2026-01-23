@@ -100,3 +100,20 @@ body,
   color: #000000 !important;
   background-color: #ffffff !important;
 }
+
+/* Nền vũ trụ tĩnh (Static Space) */
+.bg-space {
+  background-color: #020617; /* Màu Slate-950 (Đen xanh thẫm) */
+  background-image:
+    radial-gradient(white, rgba(255, 255, 255, 0.2) 1px, transparent 1.5px),
+    radial-gradient(white, rgba(255, 255, 255, 0.15) 1px, transparent 1.5px),
+    radial-gradient(white, rgba(255, 255, 255, 0.1) 2px, transparent 2.5px);
+  background-size:
+    550px 550px,
+    350px 350px,
+    250px 250px;
+  background-position:
+    0 0,
+    40px 60px,
+    130px 270px;
+}

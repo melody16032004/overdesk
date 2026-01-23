@@ -41,7 +41,7 @@ export const SYSTEM_PRESETS = [
       "tree",
       "tester",
       "testcase",
-      "bug-report",
+      "bug_report",
     ],
   },
   {
@@ -57,8 +57,8 @@ export const SYSTEM_PRESETS = [
       "whiteboard",
       "music",
       "camera",
-      "img-compress",
-      "fb-tools",
+      "img_compress",
+      "fb_tools",
     ],
   },
   {

@@ -18,7 +18,7 @@ import { AppHeader } from "./sub_components/AppHeader";
 import { DashboardApp } from "../../../types/dashboard";
 import { INITIAL_APPS } from "./constants/INITIAL_APPS";
 import { AppInfo } from "./sub_components/AppInfo";
-import { ArrowUp, ChevronLeft, EyeOff, Grid, Search, X } from "lucide-react";
+import { ArrowUp, ChevronLeft, EyeOff, Search, X } from "lucide-react";
 import { UpdatePopup } from "./sub_components/UpdatePopup";
 import { APP_COMPONENTS } from "./constants/APP_COMPONENTS";
 import { ConfigModule } from "./modules/config_module/ConfigModule";
@@ -360,8 +360,13 @@ export const Dashboard = () => {
           <div className="mb-5 mt-3 px-3 shrink-0 flex items-center justify-between overflow-visible">
             <div className="flex items-center gap-3 min-w-0 overflow-hidden">
               {/* Logo box: Thêm backdrop-blur để đẹp hơn trên nền ảnh */}
-              <div className="w-10 h-10 shrink-0 rounded-xl bg-slate-900/90 dark:bg-white/90 backdrop-blur-md flex items-center justify-center text-white dark:text-slate-900 shadow-lg">
-                <Grid size={20} />
+              <div className="w-10 h-10 shrink-0 rounded-xl bg-slate-900/90 dark:bg-slate-300 backdrop-blur-md flex items-center justify-center text-white dark:text-slate-900 shadow-lg">
+                {/* <Grid size={20} /> */}
+                <img
+                  src="/overdesk_logo.png"
+                  alt="OverDesk Logo"
+                  // className="w-6 h-6"
+                />
               </div>
               <div className="truncate drop-shadow-sm">
                 <div className="inline-flex items-end gap-1">
@@ -627,11 +632,11 @@ export const Dashboard = () => {
         activeApp !== "dice" &&
         activeApp !== "goals" &&
         activeApp !== "table" &&
-        activeApp !== "fb-tools" &&
+        activeApp !== "fb_tools" &&
         activeApp !== "ai" &&
         activeApp !== "tester" &&
         activeApp !== "testcase" &&
-        activeApp !== "bug-report" &&
+        activeApp !== "bug_report" &&
         activeApp !== "library" &&
         activeApp !== "piano" &&
         activeApp !== "rpg" &&
@@ -644,13 +649,17 @@ export const Dashboard = () => {
         activeApp !== "space3d" &&
         activeApp !== "anim" &&
         activeApp !== "clock" &&
-        activeApp !== "photo-booth" &&
+        activeApp !== "photo_booth" &&
         activeApp !== "phone" &&
         activeApp !== "mirror" &&
         activeApp !== "hourglass" &&
         activeApp !== "excel" &&
         activeApp !== "word" &&
         activeApp !== "gen" &&
+        activeApp !== "periodic" &&
+        activeApp !== "space" &&
+        activeApp !== "stargazer" &&
+        activeApp !== "responsive" &&
         activeApp !== "qrcode" && (
           <div
             className={`transition-opacity duration-500 ${isWindowHovered || !autoHideUI ? "opacity-100" : "opacity-0"}`}

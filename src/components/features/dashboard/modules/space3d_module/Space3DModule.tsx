@@ -1,11 +1,5 @@
-import React, {
-  useState,
-  useRef,
-  useEffect,
-  Suspense,
-  useCallback,
-} from "react";
-import { Canvas, useFrame } from "@react-three/fiber";
+import React, { useState, useEffect, Suspense, useCallback } from "react";
+import { Canvas } from "@react-three/fiber";
 import {
   OrbitControls,
   Grid,
@@ -15,18 +9,9 @@ import {
   PerspectiveCamera,
   Environment,
   ContactShadows,
-  TransformControls,
   Stats as ThreeStats,
 } from "@react-three/drei";
-import { Physics, useBox, usePlane, useSphere } from "@react-three/cannon";
-import {
-  Geometry,
-  Base,
-  Subtraction,
-  Addition,
-  Intersection,
-} from "@react-three/csg";
-import * as THREE from "three";
+import { Physics } from "@react-three/cannon";
 import {
   Box,
   Circle,
@@ -50,7 +35,6 @@ import {
   Zap,
   Play,
   RefreshCw,
-  Cuboid,
   List,
   Gauge,
   Activity,
@@ -58,460 +42,36 @@ import {
   EyeOff,
   Lock,
   Unlock,
-  RotateCcw, // Icon Reset
+  RotateCcw,
+  PanelLeft, // Icon Reset
 } from "lucide-react";
 import clsx from "clsx";
-
-// --- TYPES ---
-type TransformMode = "translate" | "rotate" | "scale";
-type ShapeType = "box" | "sphere" | "torus" | "cone" | "knot" | "gem" | "csg";
-type AnimType = "none" | "spin" | "float" | "pulse" | "wobble";
-type CsgOperation = "base" | "add" | "sub" | "int";
-
-interface SceneObject {
-  id: string;
-  name?: string;
-  type: ShapeType;
-  position: [number, number, number];
-  rotation: [number, number, number];
-  scale: [number, number, number];
-  color: string;
-  animation: AnimType;
-  animSpeed: number;
-  csgChildren?: SceneObject[];
-  csgOp?: CsgOperation;
-  triggerUrl?: string;
-  triggerLabel?: string;
-  mass: number;
-  bounciness: number;
-  visible: boolean;
-  locked: boolean;
-}
-
-interface SceneConfig {
-  bgColor: string;
-  gridVisible: boolean;
-  ambientIntensity: number;
-  enableFog: boolean;
-  fogDensity: number;
-  snapEnabled: boolean;
-  snapStep: number;
-}
-
-interface ObjectStats {
-  position: [number, number, number];
-  velocity: [number, number, number];
-}
-
-// --- CONSTANTS & DEFAULTS ---
-const STORAGE_KEY_DATA = "overdesk_3d_objects_v1";
-const STORAGE_KEY_CONFIG = "overdesk_3d_config_v1";
-
-const DEFAULT_CONFIG: SceneConfig = {
-  bgColor: "#09090b",
-  gridVisible: true,
-  ambientIntensity: 0.6,
-  enableFog: false,
-  fogDensity: 0.03,
-  snapEnabled: false,
-  snapStep: 0.5,
-};
-
-const DEFAULT_OBJECTS: SceneObject[] = [
-  {
-    id: "1",
-    name: "Blue Cube",
-    type: "box",
-    position: [0, 5, 0],
-    rotation: [0.5, 0.5, 0],
-    scale: [1, 1, 1],
-    color: "#6366f1",
-    animation: "none",
-    animSpeed: 1,
-    mass: 1,
-    bounciness: 0.5,
-    visible: true,
-    locked: false,
-  },
-  {
-    id: "2",
-    name: "Pink Ball",
-    type: "sphere",
-    position: [0.5, 8, 0.5],
-    rotation: [0, 0, 0],
-    scale: [1, 1, 1],
-    color: "#ec4899",
-    animation: "none",
-    animSpeed: 1,
-    mass: 2,
-    bounciness: 0.8,
-    visible: true,
-    locked: false,
-  },
-  {
-    id: "floor",
-    name: "Ground",
-    type: "box",
-    position: [0, -0.5, 0],
-    rotation: [0, 0, 0],
-    scale: [20, 1, 20],
-    color: "#333333",
-    animation: "none",
-    animSpeed: 0,
-    mass: 0,
-    bounciness: 0.1,
-    visible: true,
-    locked: true,
-  },
-];
-
-const TEMPLATES = [
-  {
-    label: "Planet",
-    type: "sphere",
-    scale: [2, 2, 2],
-    color: "#3b82f6",
-    mass: 5,
-    bounciness: 0.5,
-    animation: "spin" as AnimType,
-    speed: 0.5,
-    icon: <Circle size={16} />,
-  },
-  {
-    label: "Crate",
-    type: "box",
-    scale: [1, 1, 1],
-    color: "#eab308",
-    mass: 1,
-    bounciness: 0.2,
-    animation: "none" as AnimType,
-    speed: 0,
-    icon: <Cuboid size={16} />,
-  },
-  {
-    label: "Bouncy Ball",
-    type: "sphere",
-    scale: [1, 1, 1],
-    color: "#ec4899",
-    mass: 1,
-    bounciness: 0.9,
-    animation: "none" as AnimType,
-    speed: 0,
-    icon: <Circle size={16} />,
-  },
-];
-
-const generateId = () => Math.random().toString(36).substr(2, 9);
-
-// --- HELPER ---
-const GeometryShape = ({ type }: { type: ShapeType }) => {
-  switch (type) {
-    case "box":
-      return <boxGeometry args={[1, 1, 1]} />;
-    case "sphere":
-      return <sphereGeometry args={[0.7, 32, 32]} />;
-    case "torus":
-      return <torusGeometry args={[0.6, 0.2, 16, 32]} />;
-    case "cone":
-      return <coneGeometry args={[0.7, 1.5, 32]} />;
-    case "knot":
-      return <torusKnotGeometry args={[0.5, 0.15, 64, 8]} />;
-    case "gem":
-      return <icosahedronGeometry args={[0.7, 0]} />;
-    default:
-      return <boxGeometry args={[1, 1, 1]} />;
-  }
-};
-
-const CsgMesh = ({ data }: { data: SceneObject }) => {
-  if (!data.csgChildren || data.csgChildren.length === 0) return null;
-  return (
-    <Geometry>
-      {data.csgChildren.map((child, index) => {
-        const Component =
-          index === 0
-            ? Base
-            : child.csgOp === "sub"
-            ? Subtraction
-            : child.csgOp === "int"
-            ? Intersection
-            : Addition;
-        return (
-          <Component
-            key={child.id}
-            position={child.position}
-            rotation={child.rotation as any}
-            scale={child.scale}
-          >
-            <GeometryShape type={child.type} />
-          </Component>
-        );
-      })}
-    </Geometry>
-  );
-};
-
-const PhysicsFloor = () => {
-  usePlane(() => ({
-    rotation: [-Math.PI / 2, 0, 0],
-    position: [0, 0, 0],
-    type: "Static",
-    material: { friction: 0.1, restitution: 0.5 },
-  }));
-  return null;
-};
-
-// --- SIMULATED OBJECT ---
-const SimulatedSphere = ({
-  data,
-  isSelected,
-  onTrigger,
-  onStatsUpdate,
-}: {
-  data: SceneObject;
-  isSelected: boolean;
-  onTrigger: (url: string) => void;
-  onStatsUpdate: (stats: ObjectStats) => void;
-}) => {
-  const radius = 0.7 * data.scale[0];
-  const [ref, api] = useSphere(() => ({
-    mass: data.mass,
-    position: data.position,
-    rotation: data.rotation as any,
-    args: [radius],
-    material: { friction: 0.1, restitution: data.bounciness },
-  }));
-
-  useEffect(() => {
-    if (!isSelected) return;
-    let currentPos = [0, 0, 0];
-    const pSub = api.position.subscribe((v) => {
-      currentPos = v;
-      onStatsUpdate({ position: v as any, velocity: [0, 0, 0] });
-    });
-    const vSub = api.velocity.subscribe((v) =>
-      onStatsUpdate({ position: currentPos as any, velocity: v as any })
-    );
-    return () => {
-      pSub();
-      vSub();
-    };
-  }, [isSelected, api]);
-
-  return (
-    <mesh
-      ref={ref as any}
-      scale={data.scale}
-      onClick={(e) => {
-        e.stopPropagation();
-        if (data.triggerUrl) onTrigger(data.triggerUrl);
-      }}
-      castShadow
-      receiveShadow
-    >
-      <GeometryShape type={data.type} />
-      <meshStandardMaterial
-        color={data.color}
-        roughness={0.2}
-        metalness={0.5}
-      />
-      {isSelected && (
-        <lineSegments>
-          <edgesGeometry args={[new THREE.SphereGeometry(0.7, 16, 16)]} />
-          <lineBasicMaterial color="#ffff00" />
-        </lineSegments>
-      )}
-    </mesh>
-  );
-};
-
-const SimulatedBox = ({
-  data,
-  isSelected,
-  onTrigger,
-  onStatsUpdate,
-}: {
-  data: SceneObject;
-  isSelected: boolean;
-  onTrigger: (url: string) => void;
-  onStatsUpdate: (stats: ObjectStats) => void;
-}) => {
-  const [ref, api] = useBox(() => ({
-    mass: data.mass,
-    position: data.position,
-    rotation: data.rotation as any,
-    args: [data.scale[0], data.scale[1], data.scale[2]],
-    material: { friction: 0.1, restitution: data.bounciness },
-  }));
-
-  useEffect(() => {
-    if (!isSelected) return;
-    let currentPos = [0, 0, 0];
-    const pSub = api.position.subscribe((v) => {
-      currentPos = v;
-      onStatsUpdate({ position: v as any, velocity: [0, 0, 0] });
-    });
-    const vSub = api.velocity.subscribe((v) =>
-      onStatsUpdate({ position: currentPos as any, velocity: v as any })
-    );
-    return () => {
-      pSub();
-      vSub();
-    };
-  }, [isSelected, api]);
-
-  return (
-    <mesh
-      ref={ref as any}
-      scale={data.scale}
-      onClick={(e) => {
-        e.stopPropagation();
-        if (data.triggerUrl) onTrigger(data.triggerUrl);
-      }}
-      castShadow
-      receiveShadow
-    >
-      {data.type === "csg" ? (
-        <CsgMesh data={data} />
-      ) : (
-        <GeometryShape type={data.type} />
-      )}
-      <meshStandardMaterial
-        color={data.color}
-        roughness={0.2}
-        metalness={0.5}
-        emissive={data.type === "knot" ? data.color : "#000000"}
-        emissiveIntensity={data.type === "knot" ? 0.2 : 0}
-      />
-      {isSelected && (
-        <lineSegments>
-          <edgesGeometry args={[new THREE.BoxGeometry(1, 1, 1)]} />
-          <lineBasicMaterial color="#ffff00" />
-        </lineSegments>
-      )}
-    </mesh>
-  );
-};
-
-const SimulatedObject = ({
-  data,
-  isSelected,
-  onTrigger,
-  onStatsUpdate,
-}: {
-  data: SceneObject;
-  isSelected: boolean;
-  onTrigger: (url: string) => void;
-  onStatsUpdate: (stats: ObjectStats) => void;
-}) => {
-  if (data.type === "sphere")
-    return (
-      <SimulatedSphere
-        data={data}
-        isSelected={isSelected}
-        onTrigger={onTrigger}
-        onStatsUpdate={onStatsUpdate}
-      />
-    );
-  return (
-    <SimulatedBox
-      data={data}
-      isSelected={isSelected}
-      onTrigger={onTrigger}
-      onStatsUpdate={onStatsUpdate}
-    />
-  );
-};
-
-// --- EDITABLE OBJECT ---
-const EditableObject = ({
-  data,
-  isSelected,
-  mode,
-  config,
-  onSelect,
-  onUpdate,
-}: {
-  data: SceneObject;
-  isSelected: boolean;
-  mode: TransformMode;
-  config: SceneConfig;
-  onSelect: (e: any) => void;
-  onUpdate: (id: string, props: Partial<SceneObject>) => void;
-}) => {
-  const meshRef = useRef<THREE.Mesh>(null!);
-  useFrame((state) => {
-    if (!meshRef.current || isSelected) return;
-    const time = state.clock.getElapsedTime();
-    const speed = data.animSpeed || 1;
-    if (data.animation === "float")
-      meshRef.current.position.y =
-        data.position[1] + Math.sin(time * speed * 2) * 0.3;
-    if (data.animation === "spin") {
-      meshRef.current.rotation.y += 0.01 * speed;
-      meshRef.current.rotation.x += 0.005 * speed;
-    }
-  });
-
-  return (
-    <>
-      <mesh
-        ref={meshRef}
-        position={data.position}
-        rotation={data.rotation as any}
-        scale={data.scale}
-        onClick={onSelect}
-        castShadow
-        receiveShadow
-      >
-        {data.type === "csg" ? (
-          <CsgMesh data={data} />
-        ) : (
-          <GeometryShape type={data.type} />
-        )}
-        <meshStandardMaterial
-          color={isSelected ? "#facc15" : data.color}
-          roughness={0.2}
-          metalness={0.5}
-          emissive={
-            isSelected
-              ? "#443300"
-              : data.type === "knot"
-              ? data.color
-              : "#000000"
-          }
-          emissiveIntensity={data.type === "knot" ? 0.2 : 0}
-          opacity={data.locked ? 0.8 : 1}
-          transparent={data.locked}
-        />
-      </mesh>
-
-      {isSelected && !data.locked && (
-        <TransformControls
-          object={meshRef}
-          mode={mode}
-          translationSnap={config.snapEnabled ? config.snapStep : null}
-          rotationSnap={config.snapEnabled ? Math.PI / 4 : null}
-          scaleSnap={config.snapEnabled ? 0.1 : null}
-          onObjectChange={() => {
-            if (meshRef.current) {
-              const { position, rotation, scale } = meshRef.current;
-              onUpdate(data.id, {
-                position: [position.x, position.y, position.z],
-                rotation: [rotation.x, rotation.y, rotation.z],
-                scale: [scale.x, scale.y, scale.z],
-              });
-            }
-          }}
-        />
-      )}
-    </>
-  );
-};
+import {
+  ObjectStats,
+  SceneConfig,
+  SceneObject,
+  ShapeType,
+  TransformMode,
+} from "./types/space3d_type";
+import {
+  DEFAULT_CONFIG,
+  DEFAULT_OBJECTS,
+  STORAGE_KEY_CONFIG,
+  STORAGE_KEY_DATA,
+  TEMPLATES,
+} from "./constants/space3d_const";
+import { generateId } from "./helper/space3d_helper";
+import { PhysicsFloor } from "./components/PhysicsFloor";
+import { SimulatedObject } from "./components/SimulatedObject";
+import { EditableObject } from "./components/EditableObject";
 
 // --- MAIN MODULE ---
 export const Space3DModule = () => {
-  // [AUTO-LOAD] Initialize State from LocalStorage
+  // ==================================================================================
+  // 1. STATE MANAGEMENT
+  // ==================================================================================
+
+  // --- SCENE DATA & CONFIG (PERSISTENCE) ---
   const [objects, setObjects] = useState<SceneObject[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY_DATA);
@@ -531,11 +91,18 @@ export const Space3DModule = () => {
     }
   });
 
+  const [showLeftPanel, setShowLeftPanel] = useState(true);
+
+  // --- INTERACTION & SELECTION ---
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [transformMode, setTransformMode] =
     useState<TransformMode>("translate");
   const [showSettings, setShowSettings] = useState(false);
+
+  // --- CLIPBOARD ---
   const [clipboard, setClipboard] = useState<SceneObject | null>(null);
+
+  // --- PLAYBACK & PHYSICS STATS ---
   const [isPlayMode, setIsPlayMode] = useState(false);
   const [resetKey, setResetKey] = useState(0);
   const [timeScale, setTimeScale] = useState(1);
@@ -544,7 +111,14 @@ export const Space3DModule = () => {
     velocity: [0, 0, 0],
   });
 
-  // [AUTO-SAVE] Effect to save data on changes
+  // Derived State
+  const selectedObject = objects.find((o) => o.id === selectedIds[0]);
+
+  // ==================================================================================
+  // 2. EFFECTS (SIDE EFFECTS)
+  // ==================================================================================
+
+  // [AUTO-SAVE] Persistence
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY_DATA, JSON.stringify(objects));
   }, [objects]);
@@ -553,7 +127,61 @@ export const Space3DModule = () => {
     localStorage.setItem(STORAGE_KEY_CONFIG, JSON.stringify(sceneConfig));
   }, [sceneConfig]);
 
-  // [NEW] Factory Reset Action
+  // [SHORTCUTS] Keyboard Event Listener
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (document.activeElement?.tagName === "INPUT") return;
+
+      // Play/Pause
+      if (e.key === " ") {
+        e.preventDefault();
+        handleTogglePlay();
+        return;
+      }
+
+      if (!isPlayMode) {
+        // Clipboard & Actions
+        if (e.ctrlKey || e.metaKey) {
+          switch (e.key.toLowerCase()) {
+            case "c":
+              handleCopy();
+              break;
+            case "x":
+              handleCut();
+              break;
+            case "v":
+              handlePaste();
+              break;
+          }
+        } else {
+          // Tools & Transform Modes
+          switch (e.key.toLowerCase()) {
+            case "w":
+              setTransformMode("translate");
+              break;
+            case "e":
+              setTransformMode("rotate");
+              break;
+            case "r":
+              setTransformMode("scale");
+              break;
+            case "delete":
+            case "backspace":
+              handleDeleteSelected();
+              break;
+          }
+        }
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [selectedIds, clipboard, isPlayMode]); // Dependencies quan trọng
+
+  // ==================================================================================
+  // 3. ACTION HANDLERS
+  // ==================================================================================
+
+  // --- SCENE MANAGEMENT ---
   const handleFactoryReset = () => {
     if (confirm("Reset toàn bộ Scene về mặc định? Dữ liệu hiện tại sẽ mất.")) {
       setObjects(DEFAULT_OBJECTS);
@@ -575,34 +203,10 @@ export const Space3DModule = () => {
     setIsPlayMode(!isPlayMode);
   };
 
-  const handleSelect = (e: any, id: string) => {
-    if (e) e.stopPropagation();
-    if (e && (e.shiftKey || e.ctrlKey) && !isPlayMode) {
-      if (selectedIds.includes(id))
-        setSelectedIds((prev) => prev.filter((i) => i !== id));
-      else setSelectedIds((prev) => [...prev, id]);
-    } else {
-      setSelectedIds([id]);
-    }
-  };
-
-  const handleToggleVisibility = (e: React.MouseEvent, id: string) => {
-    e.stopPropagation();
-    setObjects((prev) =>
-      prev.map((o) => (o.id === id ? { ...o, visible: !o.visible } : o))
-    );
-  };
-
-  const handleToggleLock = (e: React.MouseEvent, id: string) => {
-    e.stopPropagation();
-    setObjects((prev) =>
-      prev.map((o) => (o.id === id ? { ...o, locked: !o.locked } : o))
-    );
-  };
-
+  // --- OBJECT CRUD (CREATE, UPDATE, DELETE) ---
   const handleAddObject = (
     type: ShapeType,
-    props: Partial<SceneObject> = {}
+    props: Partial<SceneObject> = {},
   ) => {
     const newObj: SceneObject = {
       id: generateId(),
@@ -624,31 +228,55 @@ export const Space3DModule = () => {
     setSelectedIds([newObj.id]);
   };
 
+  const handleUpdateObject = (id: string, props: Partial<SceneObject>) => {
+    setObjects((prev) =>
+      prev.map((o) => (o.id === id ? { ...o, ...props } : o)),
+    );
+  };
+
   const handleDeleteSelected = useCallback(() => {
     setObjects((prev) => prev.filter((o) => !selectedIds.includes(o.id)));
     setSelectedIds([]);
   }, [selectedIds]);
 
-  const handleUpdateObject = (id: string, props: Partial<SceneObject>) => {
+  // --- SELECTION & VISIBILITY ---
+  const handleSelect = (e: any, id: string) => {
+    if (e) e.stopPropagation();
+    if (e && (e.shiftKey || e.ctrlKey) && !isPlayMode) {
+      if (selectedIds.includes(id))
+        setSelectedIds((prev) => prev.filter((i) => i !== id));
+      else setSelectedIds((prev) => [...prev, id]);
+    } else {
+      setSelectedIds([id]);
+    }
+  };
+
+  const handleToggleVisibility = (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
     setObjects((prev) =>
-      prev.map((o) => (o.id === id ? { ...o, ...props } : o))
+      prev.map((o) => (o.id === id ? { ...o, visible: !o.visible } : o)),
     );
   };
 
-  const handleExecuteTrigger = (url: string) => {
-    window.open(url, "_blank");
+  const handleToggleLock = (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    setObjects((prev) =>
+      prev.map((o) => (o.id === id ? { ...o, locked: !o.locked } : o)),
+    );
   };
 
-  const selectedObject = objects.find((o) => o.id === selectedIds[0]);
+  // --- CLIPBOARD OPERATIONS ---
   const handleCopy = () => {
     if (selectedObject) setClipboard(selectedObject);
   };
+
   const handleCut = () => {
     if (selectedObject) {
       setClipboard(selectedObject);
       handleDeleteSelected();
     }
   };
+
   const handlePaste = () => {
     if (clipboard) {
       const newObj = {
@@ -667,6 +295,8 @@ export const Space3DModule = () => {
       setSelectedIds([newObj.id]);
     }
   };
+
+  // --- ADVANCED TOOLS (ALIGN, CSG, TRIGGER) ---
   const handleAlignFloor = () => {
     if (selectedObject)
       handleUpdateObject(selectedObject.id, {
@@ -677,19 +307,22 @@ export const Space3DModule = () => {
         ],
       });
   };
+
   const handleAlignCenter = () => {
     if (selectedObject)
       handleUpdateObject(selectedObject.id, {
         position: [0, selectedObject.position[1], 0],
       });
   };
+
   const performBoolean = (operation: "add" | "sub") => {
     if (selectedIds.length < 2) return;
     const selectedObjs = objects.filter((o) => selectedIds.includes(o.id));
     const sorted = selectedObjs.sort(
-      (a, b) => selectedIds.indexOf(a.id) - selectedIds.indexOf(b.id)
+      (a, b) => selectedIds.indexOf(a.id) - selectedIds.indexOf(b.id),
     );
     const baseObj = sorted[0];
+
     const csgChildren: SceneObject[] = sorted.map((obj, index) => ({
       ...obj,
       position: [
@@ -699,6 +332,7 @@ export const Space3DModule = () => {
       ],
       csgOp: index === 0 ? "base" : operation,
     }));
+
     const newCsgObj: SceneObject = {
       ...baseObj,
       id: generateId(),
@@ -708,11 +342,16 @@ export const Space3DModule = () => {
       visible: true,
       locked: false,
     };
+
     setObjects([
       ...objects.filter((o) => !selectedIds.includes(o.id)),
       newCsgObj,
     ]);
     setSelectedIds([newCsgObj.id]);
+  };
+
+  const handleExecuteTrigger = (url: string) => {
+    window.open(url, "_blank");
   };
 
   const handleStatsUpdate = (stats: ObjectStats) => {
@@ -722,69 +361,43 @@ export const Space3DModule = () => {
     }));
   };
 
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (document.activeElement?.tagName === "INPUT") return;
-      if (e.key === " ") {
-        e.preventDefault();
-        handleTogglePlay();
-        return;
-      }
-      if (!isPlayMode) {
-        if (e.ctrlKey || e.metaKey) {
-          switch (e.key.toLowerCase()) {
-            case "c":
-              handleCopy();
-              break;
-            case "x":
-              handleCut();
-              break;
-            case "v":
-              handlePaste();
-              break;
-          }
-        } else {
-          switch (e.key.toLowerCase()) {
-            case "w":
-              setTransformMode("translate");
-              break;
-            case "e":
-              setTransformMode("rotate");
-              break;
-            case "r":
-              setTransformMode("scale");
-              break;
-            case "delete":
-            case "backspace":
-              handleDeleteSelected();
-              break;
-          }
-        }
-      }
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [selectedIds, clipboard, isPlayMode]);
-
   return (
     <div className="h-full w-full bg-black relative overflow-hidden flex flex-col font-sans select-none">
       {/* TOOLBAR */}
       <div
         className={clsx(
-          "absolute top-4 left-1/2 -translate-x-1/2 z-20 flex gap-2 p-1.5 backdrop-blur-md rounded-xl border shadow-xl transition-colors duration-300",
+          // [UPDATED] Thêm: flex-wrap, justify-center, max-w-[95vw] để responsive
+          "absolute top-4 left-1/2 -translate-x-1/2 z-20 flex flex-wrap justify-center gap-2 p-1.5 backdrop-blur-md rounded-xl border shadow-xl transition-colors duration-300 max-w-[95vw]",
           isPlayMode
             ? "bg-indigo-900/80 border-indigo-500/50"
-            : "bg-[#1a1a1a]/90 border-white/10"
+            : "bg-[#1a1a1a]/90 border-white/10",
         )}
       >
+        {/* [NEW] Button Toggle Left Panel */}
+        <div className="flex gap-1 border-r border-white/10 pr-2 mr-1 items-center">
+          <button
+            onClick={() => setShowLeftPanel(!showLeftPanel)}
+            className={clsx(
+              "p-2 rounded-lg transition-colors",
+              showLeftPanel
+                ? "bg-indigo-600 text-white"
+                : "text-gray-400 hover:text-white hover:bg-white/10",
+            )}
+            title="Toggle Sidebar"
+          >
+            <PanelLeft size={18} />
+          </button>
+        </div>
+
+        {/* Play/Pause Group */}
         <div className="flex gap-2 border-r border-white/10 pr-2 mr-1 items-center">
           <button
             onClick={handleTogglePlay}
             className={clsx(
-              "flex items-center gap-2 px-3 py-1.5 rounded-lg transition-all font-bold text-xs",
+              "flex items-center gap-2 px-3 py-1.5 rounded-lg transition-all font-bold text-xs whitespace-nowrap", // Added whitespace-nowrap
               isPlayMode
                 ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/20"
-                : "bg-white/10 text-gray-300 hover:bg-white/20"
+                : "bg-white/10 text-gray-300 hover:bg-white/20",
             )}
             title="Spacebar to Toggle"
           >
@@ -819,6 +432,7 @@ export const Space3DModule = () => {
 
         {!isPlayMode && (
           <>
+            {/* Transform Tools */}
             <div className="flex gap-1 border-r border-white/10 pr-2 mr-1">
               <button
                 onClick={() => setTransformMode("translate")}
@@ -826,7 +440,7 @@ export const Space3DModule = () => {
                   "p-2 rounded-lg transition-colors",
                   transformMode === "translate"
                     ? "bg-indigo-600 text-white"
-                    : "text-gray-400 hover:text-white hover:bg-white/10"
+                    : "text-gray-400 hover:text-white hover:bg-white/10",
                 )}
                 title="Move"
               >
@@ -838,7 +452,7 @@ export const Space3DModule = () => {
                   "p-2 rounded-lg transition-colors",
                   transformMode === "rotate"
                     ? "bg-indigo-600 text-white"
-                    : "text-gray-400 hover:text-white hover:bg-white/10"
+                    : "text-gray-400 hover:text-white hover:bg-white/10",
                 )}
                 title="Rotate"
               >
@@ -850,13 +464,15 @@ export const Space3DModule = () => {
                   "p-2 rounded-lg transition-colors",
                   transformMode === "scale"
                     ? "bg-indigo-600 text-white"
-                    : "text-gray-400 hover:text-white hover:bg-white/10"
+                    : "text-gray-400 hover:text-white hover:bg-white/10",
                 )}
                 title="Scale"
               >
                 <Maximize size={18} />
               </button>
             </div>
+
+            {/* Boolean Tools */}
             <div className="flex gap-1 border-r border-white/10 pr-2 mr-1">
               <button
                 onClick={() => performBoolean("add")}
@@ -873,6 +489,8 @@ export const Space3DModule = () => {
                 <Slice size={18} />
               </button>
             </div>
+
+            {/* Utilities */}
             <div className="flex gap-1 border-r border-white/10 pr-2 mr-1">
               <button
                 onClick={() =>
@@ -882,7 +500,7 @@ export const Space3DModule = () => {
                   "p-2 rounded-lg transition-colors",
                   sceneConfig.snapEnabled
                     ? "bg-amber-600 text-white"
-                    : "text-gray-400 hover:text-white hover:bg-white/10"
+                    : "text-gray-400 hover:text-white hover:bg-white/10",
                 )}
                 title="Magnet"
               >
@@ -908,6 +526,7 @@ export const Space3DModule = () => {
           </>
         )}
 
+        {/* Settings & Grid */}
         <div className="flex gap-1">
           <button
             onClick={() =>
@@ -917,7 +536,7 @@ export const Space3DModule = () => {
               "p-2 rounded-lg transition-colors",
               sceneConfig.gridVisible
                 ? "text-indigo-400 bg-indigo-500/10"
-                : "text-gray-400 hover:text-white hover:bg-white/10"
+                : "text-gray-400 hover:text-white hover:bg-white/10",
             )}
             title="Grid"
           >
@@ -929,7 +548,7 @@ export const Space3DModule = () => {
               "p-2 rounded-lg transition-colors",
               showSettings
                 ? "bg-indigo-600 text-white"
-                : "text-gray-400 hover:text-white hover:bg-white/10"
+                : "text-gray-400 hover:text-white hover:bg-white/10",
             )}
             title="Settings"
           >
@@ -993,137 +612,133 @@ export const Space3DModule = () => {
       )}
 
       {/* LEFT PANEL: HIERARCHY & SHAPES */}
-      <div className="absolute top-1/2 -translate-y-1/2 left-4 z-20 flex flex-col gap-3 p-3 bg-[#1a1a1a]/80 backdrop-blur-md rounded-xl border border-white/10 shadow-xl max-h-[80vh] w-56 animate-in slide-in-from-left-5">
-        {!isPlayMode && (
-          <div className="flex flex-col gap-3 border-b border-white/10 pb-3">
-            <p className="text-[9px] font-bold text-gray-500 text-center uppercase tracking-wider">
-              Create
-            </p>
-            <div className="grid grid-cols-4 gap-1">
-              <button
-                onClick={() => handleAddObject("box")}
-                className="p-2 rounded bg-white/5 hover:bg-white/10 text-gray-300"
-                title="Cube"
-              >
-                <Box size={14} />
-              </button>
-              <button
-                onClick={() => handleAddObject("sphere")}
-                className="p-2 rounded bg-white/5 hover:bg-white/10 text-gray-300"
-                title="Sphere"
-              >
-                <Circle size={14} />
-              </button>
-              <button
-                onClick={() => handleAddObject("cone")}
-                className="p-2 rounded bg-white/5 hover:bg-white/10 text-gray-300"
-                title="Cone"
-              >
-                <Triangle size={14} />
-              </button>
-              <button
-                onClick={() => handleAddObject("gem")}
-                className="p-2 rounded bg-white/5 hover:bg-white/10 text-gray-300"
-                title="Gem"
-              >
-                <Hexagon size={14} />
-              </button>
-            </div>
-            <div className="flex flex-col gap-1">
-              {TEMPLATES.map((t) => (
+      {showLeftPanel && (
+        <div className="absolute top-1/2 -translate-y-1/2 left-4 z-20 flex flex-col gap-3 p-3 bg-[#1a1a1a]/80 backdrop-blur-md rounded-xl border border-white/10 shadow-xl max-h-[80vh] w-56 animate-in slide-in-from-left-5">
+          {!isPlayMode && (
+            <div className="flex flex-col gap-3 border-b border-white/10 pb-3">
+              <p className="text-[9px] font-bold text-gray-500 text-center uppercase tracking-wider">
+                Create
+              </p>
+              <div className="grid grid-cols-4 gap-1">
                 <button
-                  key={t.label}
-                  onClick={() =>
-                    handleAddObject(t.type as ShapeType, {
-                      name: t.label,
-                      scale: t.scale as any,
-                      color: t.color,
-                      animation: t.animation,
-                      animSpeed: t.speed,
-                      mass: t.mass,
-                      bounciness: t.bounciness,
-                    })
-                  }
-                  className="flex items-center gap-2 p-1.5 rounded bg-white/5 hover:bg-indigo-600/20 text-gray-300 text-[10px] hover:text-white"
+                  onClick={() => handleAddObject("box")}
+                  className="p-2 rounded bg-white/5 hover:bg-white/10 text-gray-300"
+                  title="Cube"
                 >
-                  <span className="opacity-70">{t.icon}</span>
-                  {t.label}
+                  <Box size={14} />
                 </button>
+                <button
+                  onClick={() => handleAddObject("sphere")}
+                  className="p-2 rounded bg-white/5 hover:bg-white/10 text-gray-300"
+                  title="Sphere"
+                >
+                  <Circle size={14} />
+                </button>
+                <button
+                  onClick={() => handleAddObject("cone")}
+                  className="p-2 rounded bg-white/5 hover:bg-white/10 text-gray-300"
+                  title="Cone"
+                >
+                  <Triangle size={14} />
+                </button>
+                <button
+                  onClick={() => handleAddObject("gem")}
+                  className="p-2 rounded bg-white/5 hover:bg-white/10 text-gray-300"
+                  title="Gem"
+                >
+                  <Hexagon size={14} />
+                </button>
+              </div>
+              <div className="flex flex-col gap-1">
+                {TEMPLATES.map((t) => (
+                  <button
+                    key={t.label}
+                    onClick={() =>
+                      handleAddObject(t.type as ShapeType, {
+                        name: t.label,
+                        scale: t.scale as any,
+                        color: t.color,
+                        animation: t.animation,
+                        animSpeed: t.speed,
+                        mass: t.mass,
+                        bounciness: t.bounciness,
+                      })
+                    }
+                    className="flex items-center gap-2 p-1.5 rounded bg-white/5 hover:bg-indigo-600/20 text-gray-300 text-[10px] hover:text-white"
+                  >
+                    <span className="opacity-70">{t.icon}</span>
+                    {t.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Hierarchy List */}
+          <div className="flex flex-col gap-1 flex-1 overflow-hidden min-h-0">
+            <p className="text-[9px] font-bold text-gray-500 uppercase tracking-wider flex items-center gap-1">
+              <List size={10} /> Hierarchy ({objects.length})
+            </p>
+            <div className="overflow-y-auto custom-scrollbar flex-1 flex flex-col gap-0.5 pr-1 max-h-48">
+              {objects.map((obj) => (
+                <div
+                  key={obj.id}
+                  onClick={(e) => handleSelect(e, obj.id)}
+                  className={clsx(
+                    "flex items-center justify-between p-1.5 rounded cursor-pointer text-[10px] group transition-all",
+                    selectedIds.includes(obj.id)
+                      ? "bg-indigo-600 text-white"
+                      : "hover:bg-white/5 text-gray-400",
+                    !obj.visible && "opacity-50",
+                  )}
+                >
+                  <div className="flex items-center gap-2 truncate flex-1">
+                    {obj.type === "box" ? (
+                      <Box size={10} />
+                    ) : (
+                      <Circle size={10} />
+                    )}
+                    <span className="truncate max-w-[80px]">
+                      {obj.name || obj.type}
+                    </span>
+                    {obj.locked && <Lock size={8} className="text-amber-400" />}
+                  </div>
+
+                  {!isPlayMode && (
+                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button
+                        onClick={(e) => handleToggleLock(e, obj.id)}
+                        className="hover:text-amber-400 p-0.5"
+                      >
+                        {obj.locked ? <Lock size={10} /> : <Unlock size={10} />}
+                      </button>
+                      <button
+                        onClick={(e) => handleToggleVisibility(e, obj.id)}
+                        className="hover:text-white p-0.5"
+                      >
+                        {obj.visible ? <Eye size={10} /> : <EyeOff size={10} />}
+                      </button>
+                      {!obj.locked && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setObjects((prev) =>
+                              prev.filter((o) => o.id !== obj.id),
+                            );
+                          }}
+                          className="hover:text-red-300 p-0.5"
+                        >
+                          <X size={10} />
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
               ))}
             </div>
           </div>
-        )}
-
-        {/* Hierarchy List (Scrollable) */}
-        <div className="flex flex-col gap-1 flex-1 overflow-hidden min-h-0">
-          <p className="text-[9px] font-bold text-gray-500 uppercase tracking-wider flex items-center gap-1">
-            <List size={10} /> Hierarchy ({objects.length})
-          </p>
-          <div className="overflow-y-auto custom-scrollbar flex-1 flex flex-col gap-0.5 pr-1 max-h-48">
-            {objects.map((obj) => (
-              <div
-                key={obj.id}
-                onClick={(e) => handleSelect(e, obj.id)}
-                className={clsx(
-                  "flex items-center justify-between p-1.5 rounded cursor-pointer text-[10px] group transition-all",
-                  selectedIds.includes(obj.id)
-                    ? "bg-indigo-600 text-white"
-                    : "hover:bg-white/5 text-gray-400",
-                  !obj.visible && "opacity-50"
-                )}
-              >
-                <div className="flex items-center gap-2 truncate flex-1">
-                  {obj.type === "box" ? (
-                    <Box size={10} />
-                  ) : (
-                    <Circle size={10} />
-                  )}
-                  <span className="truncate max-w-[80px]">
-                    {obj.name || obj.type}
-                  </span>
-                  {/* Locked Indicator */}
-                  {obj.locked && <Lock size={8} className="text-amber-400" />}
-                </div>
-
-                {!isPlayMode && (
-                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    {/* Lock Toggle */}
-                    <button
-                      onClick={(e) => handleToggleLock(e, obj.id)}
-                      className="hover:text-amber-400 p-0.5"
-                      title={obj.locked ? "Unlock" : "Lock"}
-                    >
-                      {obj.locked ? <Lock size={10} /> : <Unlock size={10} />}
-                    </button>
-                    {/* Visibility Toggle */}
-                    <button
-                      onClick={(e) => handleToggleVisibility(e, obj.id)}
-                      className="hover:text-white p-0.5"
-                      title="Show/Hide"
-                    >
-                      {obj.visible ? <Eye size={10} /> : <EyeOff size={10} />}
-                    </button>
-                    {/* Delete */}
-                    {!obj.locked && (
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setObjects((prev) =>
-                            prev.filter((o) => o.id !== obj.id)
-                          );
-                        }}
-                        className="hover:text-red-300 p-0.5"
-                      >
-                        <X size={10} />
-                      </button>
-                    )}
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
         </div>
-      </div>
+      )}
 
       {/* LIVE STATS (Play Mode) */}
       {isPlayMode && selectedIds.length > 0 && (
@@ -1144,7 +759,7 @@ export const Space3DModule = () => {
                 {Math.hypot(
                   liveStats.velocity[0],
                   liveStats.velocity[1],
-                  liveStats.velocity[2]
+                  liveStats.velocity[2],
                 ).toFixed(2)}{" "}
                 m/s
               </span>
@@ -1170,7 +785,7 @@ export const Space3DModule = () => {
         <div
           className={clsx(
             "absolute top-20 right-4 z-20 w-60 bg-[#1a1a1a]/90 backdrop-blur-md rounded-xl border border-white/10 shadow-2xl p-4 animate-in slide-in-from-right-10 overflow-y-auto max-h-[80vh]",
-            selectedObject.locked && "opacity-75 pointer-events-none"
+            selectedObject.locked && "opacity-75 pointer-events-none",
           )}
         >
           <div className="flex items-center justify-between mb-4 pb-2 border-b border-white/10">

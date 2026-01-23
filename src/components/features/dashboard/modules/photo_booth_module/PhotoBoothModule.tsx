@@ -15,213 +15,78 @@ import {
   Layers,
   ChevronLeft,
 } from "lucide-react";
-
-// --- 1. INDEXED DB HELPER (LƯU ẢNH VĨNH VIỄN) ---
-const DB_NAME = "OverdeskCameraDB";
-const STORE_NAME = "gallery";
-
-const cameraDB = {
-  open: () =>
-    new Promise<IDBDatabase>((resolve, reject) => {
-      const request = indexedDB.open(DB_NAME, 1);
-      request.onupgradeneeded = (e) => {
-        const db = (e.target as IDBOpenDBRequest).result;
-        if (!db.objectStoreNames.contains(STORE_NAME)) {
-          db.createObjectStore(STORE_NAME, { keyPath: "id" });
-        }
-      };
-      request.onsuccess = () => resolve(request.result);
-      request.onerror = () => reject(request.error);
-    }),
-  add: async (photo: { id: number; data: string }) => {
-    const db = await cameraDB.open();
-    return new Promise<void>((resolve, reject) => {
-      const tx = db.transaction(STORE_NAME, "readwrite");
-      tx.objectStore(STORE_NAME).add(photo);
-      tx.oncomplete = () => resolve();
-      tx.onerror = () => reject(tx.error);
-    });
-  },
-  getAll: async () => {
-    const db = await cameraDB.open();
-    return new Promise<{ id: number; data: string }[]>((resolve, reject) => {
-      const tx = db.transaction(STORE_NAME, "readonly");
-      const request = tx.objectStore(STORE_NAME).getAll();
-      request.onsuccess = () =>
-        resolve(request.result ? request.result.reverse() : []); // Mới nhất lên đầu
-      request.onerror = () => reject(request.error);
-    });
-  },
-  delete: async (id: number) => {
-    const db = await cameraDB.open();
-    return new Promise<void>((resolve, reject) => {
-      const tx = db.transaction(STORE_NAME, "readwrite");
-      tx.objectStore(STORE_NAME).delete(id);
-      tx.oncomplete = () => resolve();
-      tx.onerror = () => reject(tx.error);
-    });
-  },
-};
-
-// --- CONFIG ---
-const AR_MASKS = [
-  {
-    id: "cat_ears",
-    type: "image",
-    src: "https://cdn-icons-png.flaticon.com/512/1067/1067357.png",
-    label: "Cat Ears",
-  },
-  {
-    id: "dog_nose",
-    type: "image",
-    src: "https://cdn-icons-png.flaticon.com/512/6667/6667509.png",
-    label: "Doggy",
-  },
-  {
-    id: "glasses",
-    type: "image",
-    src: "https://cdn-icons-png.flaticon.com/512/616/616574.png",
-    label: "Thug Life",
-  },
-  {
-    id: "blush",
-    type: "image",
-    src: "https://cdn-icons-png.flaticon.com/512/9463/9463956.png",
-    label: "UwU Blush",
-  },
-  {
-    id: "crown",
-    type: "image",
-    src: "https://cdn-icons-png.flaticon.com/512/168/168233.png",
-    label: "Queen",
-  },
-  {
-    id: "mask",
-    type: "image",
-    src: "https://cdn-icons-png.flaticon.com/512/2061/2061803.png",
-    label: "Mask",
-  },
-];
-
-const EMOJI_LIST = [
-  "😎",
-  "🥰",
-  "👽",
-  "👻",
-  "🔥",
-  "✨",
-  "🌈",
-  "🦋",
-  "🍄",
-  "🍕",
-  "🍑",
-  "💦",
-];
-
-const FILTERS = [
-  { id: "normal", label: "Normal", css: "none", color: "bg-zinc-500" },
-  {
-    id: "cream",
-    label: "Cream",
-    css: "contrast(90%) brightness(110%) saturate(80%) sepia(20%)",
-    color: "bg-orange-200",
-  },
-  {
-    id: "dramatic",
-    label: "Drama",
-    css: "contrast(120%) saturate(120%)",
-    color: "bg-indigo-900",
-  },
-  {
-    id: "noir",
-    label: "Noir",
-    css: "grayscale(100%) contrast(110%)",
-    color: "bg-black",
-  },
-  {
-    id: "vivid",
-    label: "Vivid",
-    css: "saturate(160%) contrast(105%)",
-    color: "bg-rose-500",
-  },
-  {
-    id: "cyber",
-    label: "Cyber",
-    css: "hue-rotate(190deg) saturate(150%)",
-    color: "bg-cyan-500",
-  },
-];
-
-type ActiveElement = {
-  id: number;
-  type: "text" | "image";
-  content: string;
-  x: number;
-  y: number;
-  scale: number;
-};
-
-// Kiểu dữ liệu ảnh trong Gallery
-type GalleryItem = {
-  id: number;
-  data: string; // Base64 string
-};
+import { ActiveElement, GalleryItem } from "./types/photo_type";
+import { AR_MASKS, EMOJI_LIST, FILTERS } from "./constants/photo_const";
+import { cameraDB } from "./helper/photo_helper";
 
 export const PhotoBoothModule = () => {
+  // ==================================================================================
+  // 1. REFS (DOM & MUTABLE VALUES)
+  // ==================================================================================
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const streamRef = useRef<MediaStream | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
 
-  // --- STATE ---
-  const [photo, setPhoto] = useState<string | null>(null);
-  const [gallery, setGallery] = useState<GalleryItem[]>([]); // Đổi thành mảng object
-  const [showGalleryView, setShowGalleryView] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  // Refs cho thao tác kéo thả (tránh re-render liên tục)
+  const isDragging = useRef(false);
+  const dragTargetId = useRef<number | null>(null);
+
+  // ==================================================================================
+  // 2. STATE MANAGEMENT
+  // ==================================================================================
+
+  // --- System State ---
   const [loading, setLoading] = useState(true);
-
-  // Controls
+  const [error, setError] = useState<string | null>(null);
   const [tab, setTab] = useState<"filters" | "effects">("effects");
-  const [activeFilter, setActiveFilter] = useState(FILTERS[0]);
-  const [elements, setElements] = useState<ActiveElement[]>([]);
-  const [selectedId, setSelectedId] = useState<number | null>(null);
-  const [countdown, setCountdown] = useState<number | null>(null);
-  const [timerDuration, setTimerDuration] = useState(0);
 
-  // Pro Tools
+  // --- Camera Settings State ---
   const [isMirrored, setIsMirrored] = useState(true);
   const [showGrid, setShowGrid] = useState(false);
   const [zoom, setZoom] = useState(1);
   const [flashMode, setFlashMode] = useState(false);
   const [isFlashing, setIsFlashing] = useState(false);
 
-  // Dragging Refs
-  const isDragging = useRef(false);
-  const dragTargetId = useRef<number | null>(null);
+  // --- Capture & Timer State ---
+  const [countdown, setCountdown] = useState<number | null>(null);
+  const [timerDuration, setTimerDuration] = useState(0);
 
-  // --- INIT ---
+  // --- Editor State (Filters & Elements) ---
+  const [activeFilter, setActiveFilter] = useState(FILTERS[0]);
+  const [elements, setElements] = useState<ActiveElement[]>([]);
+  const [selectedId, setSelectedId] = useState<number | null>(null);
+
+  // --- Gallery & Output State ---
+  const [photo, setPhoto] = useState<string | null>(null);
+  const [gallery, setGallery] = useState<GalleryItem[]>([]);
+  const [showGalleryView, setShowGalleryView] = useState(false);
+
+  // ==================================================================================
+  // 3. LIFECYCLE & INITIALIZATION
+  // ==================================================================================
+
   useEffect(() => {
-    startCamera();
-    loadGallery(); // Load ảnh cũ từ DB khi mở app
+    const init = async () => {
+      await startCamera();
+      await loadGallery();
+    };
+    init();
+
     return () => stopCamera();
   }, []);
 
-  const loadGallery = async () => {
-    try {
-      const items = await cameraDB.getAll();
-      setGallery(items);
-    } catch (e) {
-      console.error("Failed to load gallery", e);
-    }
-  };
-
-  // Re-attach stream logic
+  // Xử lý việc gắn lại stream khi đóng Gallery hoặc xóa ảnh preview
   useEffect(() => {
     if (!photo && !showGalleryView && videoRef.current && streamRef.current) {
       videoRef.current.srcObject = streamRef.current;
       videoRef.current.play().catch(() => {});
     }
   }, [photo, showGalleryView]);
+
+  // ==================================================================================
+  // 4. CAMERA STREAM LOGIC
+  // ==================================================================================
 
   const startCamera = async () => {
     setLoading(true);
@@ -234,10 +99,13 @@ export const PhotoBoothModule = () => {
         },
       });
       streamRef.current = stream;
-      if (videoRef.current) videoRef.current.srcObject = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+      }
       setError(null);
     } catch (err) {
       setError("Camera error. Please allow permissions.");
+      console.error(err);
     } finally {
       setLoading(false);
     }
@@ -250,77 +118,21 @@ export const PhotoBoothModule = () => {
     }
   };
 
-  // --- EDITING LOGIC ---
-  const addElement = (type: "text" | "image", content: string) => {
-    const newEl: ActiveElement = {
-      id: Date.now(),
-      type,
-      content,
-      x: 50,
-      y: 50,
-      scale: 1,
-    };
-    setElements((prev) => [...prev, newEl]);
-    setSelectedId(newEl.id);
-  };
-  const removeElement = (id: number) => {
-    setElements((prev) => prev.filter((e) => e.id !== id));
-    if (selectedId === id) setSelectedId(null);
-  };
-
-  const handlePointerDown = (e: React.PointerEvent, id: number) => {
-    e.stopPropagation();
-    isDragging.current = true;
-    dragTargetId.current = id;
-    setSelectedId(id);
-    (e.target as HTMLElement).setPointerCapture(e.pointerId);
-  };
-  const handlePointerMove = (e: React.PointerEvent) => {
-    if (
-      !isDragging.current ||
-      dragTargetId.current === null ||
-      !containerRef.current
-    )
-      return;
-    const rect = containerRef.current.getBoundingClientRect();
-    setElements((prev) =>
-      prev.map((el) =>
-        el.id === dragTargetId.current
-          ? {
-              ...el,
-              x: ((e.clientX - rect.left) / rect.width) * 100,
-              y: ((e.clientY - rect.top) / rect.height) * 100,
-            }
-          : el
-      )
-    );
-  };
-  const handlePointerUp = (e: React.PointerEvent) => {
-    isDragging.current = false;
-    dragTargetId.current = null;
-    (e.target as HTMLElement).releasePointerCapture(e.pointerId);
-  };
-  const handleWheel = (e: React.WheelEvent, id: number) => {
-    e.stopPropagation();
-    const delta = e.deltaY > 0 ? -0.1 : 0.1;
-    setElements((prev) =>
-      prev.map((el) =>
-        el.id === id
-          ? { ...el, scale: Math.max(0.2, Math.min(5, el.scale + delta)) }
-          : el
-      )
-    );
-  };
+  // ==================================================================================
+  // 5. CAPTURE & DRAWING LOGIC (CORE)
+  // ==================================================================================
 
   const handleCapture = () => {
-    if (countdown) return;
+    if (countdown) return; // Đang đếm ngược thì không chụp đè
+
     if (timerDuration > 0) {
       setCountdown(timerDuration);
       let c = timerDuration;
       const t = setInterval(() => {
         c--;
-        if (c > 0) setCountdown(c);
-        else {
+        if (c > 0) {
+          setCountdown(c);
+        } else {
           clearInterval(t);
           setCountdown(null);
           takePhoto();
@@ -333,45 +145,58 @@ export const PhotoBoothModule = () => {
 
   const takePhoto = async () => {
     if (!videoRef.current || !canvasRef.current) return;
+
+    // Hiệu ứng nháy Flash
     setIsFlashing(true);
     setTimeout(() => setIsFlashing(false), 150);
+
     const video = videoRef.current;
     const canvas = canvasRef.current;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
+
+    // 1. Setup Canvas Size
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
 
+    // 2. Draw Video Feed (with Filter, Mirror, Zoom)
     ctx.filter = activeFilter.css;
     ctx.save();
+
     if (isMirrored) {
       ctx.translate(canvas.width, 0);
       ctx.scale(-1, 1);
     }
+
     const dw = canvas.width / zoom;
     const dh = canvas.height / zoom;
+    // Vẽ phần trung tâm của video đã được zoom
     ctx.drawImage(
       video,
       (canvas.width - dw) / 2,
       (canvas.height - dh) / 2,
       dw,
-      dh,
+      dh, // Source rect
       0,
       0,
       canvas.width,
-      canvas.height
+      canvas.height, // Destination rect
     );
-    ctx.restore();
-    ctx.filter = "none";
 
+    ctx.restore();
+    ctx.filter = "none"; // Reset filter để không ảnh hưởng text/sticker
+
+    // 3. Draw Elements (Stickers/Text)
     const drawPromises = elements.map(async (el) => {
       ctx.save();
       const pixelX = (el.x / 100) * canvas.width;
       const pixelY = (el.y / 100) * canvas.height;
+
       ctx.translate(pixelX, pixelY);
       ctx.scale(el.scale, el.scale);
+
       if (el.type === "text") {
-        ctx.font = `${canvas.height * 0.15}px sans-serif`;
+        ctx.font = `${canvas.height * 0.15}px sans-serif`; // Responsive font size
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
         ctx.fillText(el.content, 0, 0);
@@ -381,33 +206,119 @@ export const PhotoBoothModule = () => {
         img.src = el.content;
         await new Promise((resolve) => {
           img.onload = resolve;
-          img.onerror = resolve;
+          img.onerror = resolve; // Vẫn resolve để không chặn Promise.all
         });
         const size = canvas.height * 0.3;
         ctx.drawImage(img, -size / 2, -size / 2, size, size);
       }
       ctx.restore();
     });
+
     await Promise.all(drawPromises);
 
+    // 4. Draw Watermark
     ctx.font = "bold 20px sans-serif";
     ctx.fillStyle = "rgba(255,255,255,0.5)";
     ctx.textAlign = "right";
     ctx.fillText("Overdesk Cam", canvas.width - 20, canvas.height - 20);
+
+    // 5. Finalize
     setPhoto(canvas.toDataURL("image/png", 1.0));
   };
 
-  // --- SAVE LOGIC (UPDATED WITH DB) ---
+  // ==================================================================================
+  // 6. EDITOR INTERACTION (DRAG & DROP)
+  // ==================================================================================
+
+  const addElement = (type: "text" | "image", content: string) => {
+    const newEl: ActiveElement = {
+      id: Date.now(),
+      type,
+      content,
+      x: 50, // Center
+      y: 50,
+      scale: 1,
+    };
+    setElements((prev) => [...prev, newEl]);
+    setSelectedId(newEl.id);
+  };
+
+  const removeElement = (id: number) => {
+    setElements((prev) => prev.filter((e) => e.id !== id));
+    if (selectedId === id) setSelectedId(null);
+  };
+
+  const handlePointerDown = (e: React.PointerEvent, id: number) => {
+    e.stopPropagation();
+    isDragging.current = true;
+    dragTargetId.current = id;
+    setSelectedId(id);
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+  };
+
+  const handlePointerMove = (e: React.PointerEvent) => {
+    if (
+      !isDragging.current ||
+      dragTargetId.current === null ||
+      !containerRef.current
+    )
+      return;
+
+    const rect = containerRef.current.getBoundingClientRect();
+    setElements((prev) =>
+      prev.map((el) =>
+        el.id === dragTargetId.current
+          ? {
+              ...el,
+              x: ((e.clientX - rect.left) / rect.width) * 100,
+              y: ((e.clientY - rect.top) / rect.height) * 100,
+            }
+          : el,
+      ),
+    );
+  };
+
+  const handlePointerUp = (e: React.PointerEvent) => {
+    isDragging.current = false;
+    dragTargetId.current = null;
+    (e.target as HTMLElement).releasePointerCapture(e.pointerId);
+  };
+
+  const handleWheel = (e: React.WheelEvent, id: number) => {
+    e.stopPropagation();
+    const delta = e.deltaY > 0 ? -0.1 : 0.1;
+    setElements((prev) =>
+      prev.map((el) =>
+        el.id === id
+          ? { ...el, scale: Math.max(0.2, Math.min(5, el.scale + delta)) }
+          : el,
+      ),
+    );
+  };
+
+  // ==================================================================================
+  // 7. DATA PERSISTENCE & GALLERY ACTIONS
+  // ==================================================================================
+
+  const loadGallery = async () => {
+    try {
+      const items = await cameraDB.getAll();
+      setGallery(items);
+    } catch (e) {
+      console.error("Failed to load gallery", e);
+    }
+  };
+
   const savePhoto = async () => {
     if (!photo) return;
 
-    // 1. Download
+    // 1. Download file về máy
     const a = document.createElement("a");
     a.download = `snap_${Date.now()}.png`;
     a.href = photo;
     a.click();
 
-    // 2. Save to IndexedDB & Update State
+    // 2. Lưu vào IndexedDB
     const newItem = { id: Date.now(), data: photo };
     await cameraDB.add(newItem);
     setGallery((prev) => [newItem, ...prev]);
