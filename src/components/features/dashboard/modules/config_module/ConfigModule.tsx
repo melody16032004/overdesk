@@ -189,6 +189,8 @@ export const ConfigModule = ({
       case "confirm": {
         if (payload !== undefined) {
           if (Array.isArray(payload)) {
+            setActivePresetId(null);
+
             onBulkUpdate(payload); // System Preset / Show All
           } else {
             onBulkUpdate(payload.hiddenIds); // Custom Preset
