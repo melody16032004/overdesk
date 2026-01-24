@@ -86,7 +86,7 @@ import { PhoneModule } from "./components/features/dashboard/components/PhoneMod
 import { MobileMirror } from "./components/features/dashboard/components/MobileMirror";
 import { ScreenMirrorModule } from "./components/features/dashboard/components/ScreenMirrorModule";
 import { SettingsModule } from "./components/features/dashboard/modules/settings_module/SettingsModule";
-import { Command } from "@tauri-apps/plugin-shell";
+import { CursorManager } from "./components/features/dashboard/modules/settings_module/components/CursorManager";
 
 const SIZES = {
   PANEL: new LogicalSize(513, window.screen.availHeight),
@@ -115,8 +115,15 @@ function App() {
   }
 
   // 👇 LẤY THÊM CÁC HÀM SETTER ĐỂ NẠP DỮ LIỆU
-  const { viewMode, theme, opacity, setTasks, setNotes, setMapSavedLocs } =
-    useAppStore();
+  const {
+    viewMode,
+    theme,
+    opacity,
+    setTasks,
+    setNotes,
+    setMapSavedLocs,
+    customCursor,
+  } = useAppStore();
   const [standaloneApp, setStandaloneApp] = useState<string | null>(null);
 
   // const appWindow = getCurrentWindow();
@@ -151,37 +158,6 @@ function App() {
 
     initApp();
   }, []); // Dependency rỗng -> Chỉ chạy lúc Mount
-
-  // --- [MỚI] KHỞI ĐỘNG SERVER LAN ---
-  useEffect(() => {
-    const startLanServer = async () => {
-      if (!isTauri()) return;
-
-      try {
-        const command = Command.sidecar("binaries/lan-server");
-
-        command.on("close", (data) =>
-          console.log(`[Sidecar] Server tắt: ${data.code}`),
-        );
-        command.on("error", (error) =>
-          console.error(`[Sidecar] Lỗi: ${error}`),
-        );
-
-        const child = await command.spawn();
-        console.log("✅ Server LAN P2P đã chạy ngầm, PID:", child.pid);
-      } catch (err) {
-        // Lỗi này thường hiện ra trong quá trình dev (npm run tauri dev) nếu chưa build binary
-        // Nhưng khi build ra file .exe/.msi thì sẽ chạy ngon.
-        console.warn(
-          "⚠️ Sidecar chưa chạy (Có thể do đang ở chế độ Dev hoặc chưa pkg server):",
-          err,
-        );
-      }
-    };
-
-    startLanServer();
-  }, []);
-  // ------------------------------------
 
   // --- 2. THEME EFFECT (Chạy khi đổi theme) ---
   useEffect(() => {
@@ -218,6 +194,52 @@ function App() {
       setStandaloneApp(appParam);
     }
   }, []);
+
+  useEffect(() => {
+    // Logic tạo CSS
+    let normalUrl = customCursor.normal;
+    if (customCursor.enableAnimation && customCursor.animated) {
+      normalUrl = customCursor.animated;
+    } else if (!normalUrl && customCursor.animated) {
+      normalUrl = customCursor.animated;
+    }
+
+    const pointerUrl = customCursor.pointer;
+
+    // Tạo thẻ style nếu chưa có
+    let styleTag = document.getElementById("global-cursor-style");
+    if (!styleTag) {
+      styleTag = document.createElement("style");
+      styleTag.id = "global-cursor-style";
+      document.head.appendChild(styleTag);
+    }
+
+    // Xây dựng nội dung CSS
+    let cssContent = "";
+
+    // 1. Normal Cursor (Áp dụng cho body)
+    if (normalUrl) {
+      cssContent += `
+        body, html {
+          cursor: url('${normalUrl}') 0 0, auto !important;
+        }
+      `;
+    } else {
+      // Nếu không có custom, dùng cursorStyle cũ hoặc mặc định
+      // (Optional: Reset về auto)
+    }
+
+    // 2. Pointer Cursor (Áp dụng cho các element tương tác)
+    if (pointerUrl) {
+      cssContent += `
+        a, button, [role="button"], .pointer, select, input[type="submit"], input[type="image"], label {
+          cursor: url('${pointerUrl}') 0 0, pointer !important;
+        }
+      `;
+    }
+
+    styleTag.innerHTML = cssContent;
+  }, [customCursor]);
 
   if (standaloneApp) {
     return (
@@ -320,6 +342,7 @@ function App() {
       className="h-screen w-screen overflow-hidden bg-transparent flex flex-col justify-center items-center transition-opacity duration-200"
       style={{ opacity: viewMode === "bubble" ? 1 : opacity }}
     >
+      <CursorManager />
       <ScreenShareEngine />
 
       {viewMode === "bubble" ? (

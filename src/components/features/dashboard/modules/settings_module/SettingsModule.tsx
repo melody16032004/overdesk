@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 import {
   Moon,
@@ -16,15 +16,28 @@ import {
   MousePointer2,
   Image,
   Eye,
+  MousePointerClick,
+  Move,
+  Loader2,
+  ToggleRight,
+  ToggleLeft,
+  Maximize,
 } from "lucide-react";
 import { SectionHeader } from "./components/SectionHeader";
 import { Switch } from "./components/Switch";
 import { AppInfo } from "./components/AppInfo";
-import { CURSORS } from "./constants/setting_const";
-import { compressImageSmart, getBase64Size } from "./helper/setting_helper";
+// import { CURSORS } from "./constants/setting_const";
+import {
+  compressImageSmart,
+  fileToBase64,
+  getBase64Size,
+  resizeCursorImage,
+} from "./helper/setting_helper";
 import { useAppStore } from "../../../../../stores/useAppStore";
 import { useDataStore } from "../../../../../stores/useDataStore";
 import { useToastStore } from "../../../../../stores/useToastStore";
+import { CursorType } from "./types/setting_type";
+import { get, set } from "idb-keyval";
 
 export const SettingsModule = () => {
   // --- A. STORE HOOKS ---
@@ -36,8 +49,8 @@ export const SettingsModule = () => {
     timerSettings,
     multiWindowEnabled,
     toggleMultiWindow,
-    cursorStyle,
-    setCursorStyle,
+    customCursor,
+    setCustomCursor,
     backgroundImage,
     setBackgroundImage,
     autoHideUI,
@@ -46,10 +59,20 @@ export const SettingsModule = () => {
 
   const { resetData, tasks, noteContent, importData } = useDataStore();
   const { showToast } = useToastStore();
+  const [isProcessing, setIsProcessing] = useState(false);
+
+  const [rawFiles, setRawFiles] = useState<{
+    normal: File | null;
+    pointer: File | null;
+    animated: File | null;
+  }>({ normal: null, pointer: null, animated: null });
 
   // --- B. LOCAL STATE & REFS ---
   const [confirmReset, setConfirmReset] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const inputNormalRef = useRef<HTMLInputElement>(null);
+  const inputPointerRef = useRef<HTMLInputElement>(null);
+  const inputAnimatedRef = useRef<HTMLInputElement>(null);
 
   // --- C. HANDLERS: DATA MANAGEMENT (Reset, Import, Export) ---
 
@@ -93,6 +116,63 @@ export const SettingsModule = () => {
     };
     reader.readAsText(file);
   };
+
+  const handleCursorUpload = async (
+    e: React.ChangeEvent<HTMLInputElement>,
+    type: CursorType,
+  ) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.name.toLowerCase().endsWith(".ani")) {
+      showToast(
+        "Trình duyệt KHÔNG hỗ trợ file .ani. Hãy dùng .gif hoặc .png!",
+        "error",
+      );
+      return;
+    }
+
+    if (file.size > 2 * 1024 * 1024) {
+      showToast("File quá lớn! Vui lòng chọn dưới 2MB.", "error");
+      return;
+    }
+
+    setIsProcessing(true);
+    try {
+      // 1. Lưu file vào State (để dùng ngay)
+      setRawFiles((prev) => ({ ...prev, [type]: file }));
+
+      // 2. [MỚI] Lưu file gốc vào IndexedDB (để F5 không mất)
+      await set(`cursor_raw_${type}`, file);
+
+      // 3. Xử lý hiển thị (Logic cũ)
+      let resultBase64 = "";
+      if (type === "animated") {
+        resultBase64 = await fileToBase64(file);
+        showToast("Đã tải ảnh động (Giữ nguyên size gốc)", "success");
+      } else {
+        const currentSize = customCursor.size || 32;
+        resultBase64 = await resizeCursorImage(file, currentSize);
+        showToast(`Đã cập nhật ${type} cursor!`, "success");
+      }
+
+      setCustomCursor({ [type]: resultBase64 });
+    } catch (error) {
+      console.error(error);
+      showToast("Lỗi xử lý file.", "error");
+    } finally {
+      setIsProcessing(false);
+      e.target.value = "";
+    }
+  };
+
+  // Xử lý thay đổi Size (cần debounce để tránh lag)
+  const handleSizeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newSize = Number(e.target.value);
+    setCustomCursor({ size: newSize });
+  };
+
+  // const isCustomCursor = !CURSORS.some((c) => c.css === cursorStyle);
 
   // --- D. HANDLERS: MEDIA & SYSTEM (Image, Window) ---
 
@@ -153,6 +233,77 @@ export const SettingsModule = () => {
     }
   };
 
+  // --- E. USEEFFECT ---
+  useEffect(() => {
+    // [FIX] Không return sớm nữa. Chúng ta sẽ tìm nguồn ảnh phù hợp bên dưới.
+
+    const timer = setTimeout(async () => {
+      // Xác định nguồn ảnh: Ưu tiên File gốc (rawFiles), nếu không có thì dùng ảnh trong Store (customCursor)
+      const normalSource = rawFiles.normal || customCursor.normal;
+      const pointerSource = rawFiles.pointer || customCursor.pointer;
+
+      // Nếu cả 2 nguồn đều không có gì thì mới dừng
+      if (!normalSource && !pointerSource) return;
+
+      setIsProcessing(true);
+      try {
+        const updates: any = {};
+
+        // Resize Normal
+        if (normalSource) {
+          updates.normal = await resizeCursorImage(
+            normalSource,
+            customCursor.size,
+          );
+        }
+
+        // Resize Pointer
+        if (pointerSource) {
+          updates.pointer = await resizeCursorImage(
+            pointerSource,
+            customCursor.size,
+          );
+        }
+
+        // Animated: KHÔNG RESIZE (để tránh mất animation)
+
+        if (Object.keys(updates).length > 0) {
+          setCustomCursor(updates);
+        }
+      } catch (error) {
+        console.error("Auto resize error", error);
+      } finally {
+        setIsProcessing(false);
+      }
+    }, 100); // Debounce 100ms
+
+    return () => clearTimeout(timer);
+
+    // [QUAN TRỌNG] Thêm customCursor.normal/pointer vào dependency để effect nhận biết khi store thay đổi
+  }, [customCursor.size, rawFiles, customCursor.normal, customCursor.pointer]);
+
+  useEffect(() => {
+    const restoreRawFiles = async () => {
+      try {
+        const normal = await get<File>("cursor_raw_normal");
+        const pointer = await get<File>("cursor_raw_pointer");
+        const animated = await get<File>("cursor_raw_animated");
+
+        if (normal || pointer || animated) {
+          setRawFiles({
+            normal: normal || null,
+            pointer: pointer || null,
+            animated: animated || null,
+          });
+          console.log("♻️ Restored raw cursor files from DB");
+        }
+      } catch (error) {
+        console.error("Failed to restore raw files:", error);
+      }
+    };
+    restoreRawFiles();
+  }, []);
+
   return (
     <div className="flex flex-col h-full gap-5 p-2 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-300 dark:scrollbar-thumb-slate-700 pr-3">
       {/* --- SECTION: DISPLAY & SOUND --- */}
@@ -200,7 +351,7 @@ export const SettingsModule = () => {
               step="0.05"
               value={opacity}
               onChange={(e) => setOpacity(parseFloat(e.target.value))}
-              className="w-full h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer accent-indigo-500"
+              className="w-full h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg appearance-none pointer accent-indigo-500"
             />
           </div>
 
@@ -259,35 +410,186 @@ export const SettingsModule = () => {
         </div>
       </section>
 
-      {/* --- [MỚI] SECTION: CURSOR CUSTOMIZATION --- */}
+      {/* --- SECTION: CURSOR CUSTOMIZATION --- */}
       <section className="animate-in slide-in-from-bottom-2 duration-300 delay-250">
-        <SectionHeader icon={MousePointer2} title="Cursor Style" />
-        <div className="bg-white dark:bg-slate-800/60 rounded-2xl border border-slate-200 dark:border-white/5 shadow-sm p-4 backdrop-blur-sm">
-          <div className="grid grid-cols-3 gap-3">
-            {CURSORS.map((cursor) => (
-              <button
-                key={cursor.id}
-                onClick={() => setCursorStyle(cursor.css)}
-                className={`flex flex-col items-center justify-center gap-2 p-3 rounded-xl border transition-all ${
-                  cursorStyle === cursor.css
-                    ? "bg-indigo-50 dark:bg-indigo-500/20 border-indigo-500 ring-1 ring-indigo-500"
-                    : "bg-slate-50 dark:bg-slate-900/50 border-transparent hover:border-slate-300 dark:hover:border-white/10"
-                }`}
-              >
-                <div className="text-slate-700 dark:text-slate-200">
-                  {cursor.preview}
-                </div>
-                <span
-                  className={`text-[10px] font-medium ${
-                    cursorStyle === cursor.css
-                      ? "text-indigo-600 dark:text-indigo-400"
-                      : "text-slate-500"
-                  }`}
-                >
-                  {cursor.name}
+        <SectionHeader icon={MousePointer2} title="Cursor Customization" />
+        <div className="bg-white dark:bg-slate-800/60 rounded-2xl border border-slate-200 dark:border-white/5 shadow-sm p-5 backdrop-blur-sm space-y-6">
+          {/* Controls */}
+          <div className="flex flex-col gap-4 pb-4 border-b border-slate-100 dark:border-white/5">
+            <div>
+              <div className="flex justify-between mb-2">
+                <span className="text-xs font-bold text-slate-600 dark:text-slate-300 flex items-center gap-2">
+                  <Maximize size={14} /> Cursor Size
                 </span>
+                <span className="text-xs font-bold text-indigo-500">
+                  {customCursor.size}px
+                </span>
+              </div>
+              <input
+                type="range"
+                min="16"
+                max="128"
+                step="4"
+                value={customCursor.size}
+                onChange={handleSizeChange}
+                className="w-full h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg appearance-none pointer accent-indigo-500"
+              />
+            </div>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Move
+                  size={16}
+                  className={
+                    customCursor.enableAnimation
+                      ? "text-indigo-500 animate-pulse"
+                      : "text-slate-400"
+                  }
+                />
+                <div>
+                  <div className="text-xs font-bold text-slate-700 dark:text-slate-200">
+                    Enable Animation
+                  </div>
+                  <div className="text-[10px] text-slate-400">
+                    Use animated cursor (GIF)
+                  </div>
+                </div>
+              </div>
+              <button
+                onClick={() =>
+                  setCustomCursor({
+                    enableAnimation: !customCursor.enableAnimation,
+                  })
+                }
+                className={`text-2xl transition-colors ${customCursor.enableAnimation ? "text-indigo-500" : "text-slate-600"}`}
+              >
+                {customCursor.enableAnimation ? (
+                  <ToggleRight size={28} />
+                ) : (
+                  <ToggleLeft size={28} />
+                )}
               </button>
-            ))}
+            </div>
+          </div>
+
+          {/* Upload Grid */}
+          <div className="grid grid-cols-3 gap-3">
+            {/* Normal */}
+            <div className="flex flex-col gap-2">
+              <div
+                onClick={() => inputNormalRef.current?.click()}
+                className="relative h-24 rounded-xl border-2 border-dashed border-slate-300 dark:border-slate-600 hover:border-indigo-500 dark:hover:border-indigo-400 bg-slate-50 dark:bg-white/5 pointer flex flex-col items-center justify-center group transition-all"
+              >
+                {customCursor.normal ? (
+                  <img
+                    src={customCursor.normal}
+                    alt="Normal"
+                    className="w-8 h-8 object-contain"
+                  />
+                ) : (
+                  <MousePointer2
+                    size={24}
+                    className="text-slate-400 group-hover:text-indigo-500 transition-colors"
+                  />
+                )}
+                <span className="text-[9px] text-slate-400 mt-2 font-medium group-hover:text-indigo-400">
+                  Default (.png)
+                </span>
+                {isProcessing && (
+                  <div className="absolute inset-0 bg-black/20 flex items-center justify-center rounded-xl">
+                    <Loader2 className="animate-spin text-white" />
+                  </div>
+                )}
+              </div>
+              <input
+                type="file"
+                ref={inputNormalRef}
+                className="hidden"
+                accept="image/png,image/jpeg"
+                onChange={(e) => handleCursorUpload(e, "normal")}
+              />
+            </div>
+            {/* Animated */}
+            <div className="flex flex-col gap-2">
+              <div
+                onClick={() => inputAnimatedRef.current?.click()}
+                className={`relative h-24 rounded-xl border-2 border-dashed transition-all pointer flex flex-col items-center justify-center group ${customCursor.enableAnimation ? "border-indigo-500 bg-indigo-50 dark:bg-indigo-500/10" : "border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-white/5 opacity-60 hover:opacity-100"}`}
+              >
+                {customCursor.animated ? (
+                  <img
+                    src={customCursor.animated}
+                    alt="Anim"
+                    className="w-8 h-8 object-contain"
+                  />
+                ) : (
+                  <Move
+                    size={24}
+                    className="text-slate-400 group-hover:text-indigo-500 transition-colors"
+                  />
+                )}
+                <span className="text-[9px] text-slate-400 mt-2 font-medium group-hover:text-indigo-400">
+                  Animated (.gif)
+                </span>
+              </div>
+              <input
+                type="file"
+                ref={inputAnimatedRef}
+                className="hidden"
+                accept="image/gif,image/png"
+                onChange={(e) => handleCursorUpload(e, "animated")}
+              />
+            </div>
+            {/* Pointer */}
+            <div className="flex flex-col gap-2">
+              <div
+                onClick={() => inputPointerRef.current?.click()}
+                className="relative h-24 rounded-xl border-2 border-dashed border-slate-300 dark:border-slate-600 hover:border-emerald-500 dark:hover:border-emerald-400 bg-slate-50 dark:bg-white/5 pointer flex flex-col items-center justify-center group transition-all"
+              >
+                {customCursor.pointer ? (
+                  <img
+                    src={customCursor.pointer}
+                    alt="Pointer"
+                    className="w-8 h-8 object-contain"
+                  />
+                ) : (
+                  <MousePointerClick
+                    size={24}
+                    className="text-slate-400 group-hover:text-emerald-500 transition-colors"
+                  />
+                )}
+                <span className="text-[9px] text-slate-400 mt-2 font-medium group-hover:text-emerald-400">
+                  Pointer (.png)
+                </span>
+              </div>
+              <input
+                type="file"
+                ref={inputPointerRef}
+                className="hidden"
+                accept="image/png,image/jpeg"
+                onChange={(e) => handleCursorUpload(e, "pointer")}
+              />
+            </div>
+          </div>
+
+          {/* Preview Area */}
+          <div className="bg-slate-100 dark:bg-black/20 rounded-xl p-3 flex justify-around items-center border border-slate-200 dark:border-white/5">
+            <div className="flex flex-col items-center gap-2">
+              {/* Box này hiện cursor TĨNH (Normal) */}
+              <div className="w-20 h-20 bg-white dark:bg-slate-700 rounded-lg flex items-center justify-center shadow-sm text-[10px] text-slate-400 ">
+                Hover Me
+              </div>
+              <span className="text-[9px] font-bold text-slate-500">
+                Normal
+              </span>
+            </div>
+            <div className="flex flex-col items-center gap-2">
+              {/* Button này hiện cursor POINTER */}
+              <button className="w-20 h-20 bg-indigo-500 hover:bg-indigo-600 text-white rounded-lg flex items-center justify-center shadow-lg transition-colors pointer">
+                <span className="text-[10px]">Button</span>
+              </button>
+              <span className="text-[9px] font-bold text-slate-500">
+                Pointer
+              </span>
+            </div>
           </div>
         </div>
       </section>
@@ -310,7 +612,10 @@ export const SettingsModule = () => {
                 />
                 <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                   <button
-                    onClick={() => setBackgroundImage(null)}
+                    onClick={() => {
+                      showToast("Trở về background mặc định", "info");
+                      setBackgroundImage("./images/overdesk_logo.png");
+                    }}
                     className="px-3 py-1.5 bg-red-500 hover:bg-red-600 text-white text-xs font-bold rounded-lg flex items-center gap-2 transition-colors"
                   >
                     <Trash2 size={14} /> Remove
@@ -323,7 +628,7 @@ export const SettingsModule = () => {
           </div>
 
           {/* Nút Upload */}
-          <label className="flex items-center justify-center gap-2 w-full py-2.5 bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-200 dark:border-indigo-500/20 rounded-xl text-indigo-600 dark:text-indigo-400 text-xs font-bold cursor-pointer hover:bg-indigo-100 dark:hover:bg-indigo-500/20 transition-all">
+          <label className="flex items-center justify-center gap-2 w-full py-2.5 bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-200 dark:border-indigo-500/20 rounded-xl text-indigo-600 dark:text-indigo-400 text-xs font-bold pointer hover:bg-indigo-100 dark:hover:bg-indigo-500/20 transition-all">
             <Upload size={14} /> Upload Image
             <input
               type="file"

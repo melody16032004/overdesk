@@ -100,7 +100,14 @@ interface AppState {
   toggleMultiWindow: () => void; // <--- THÊM
 
   cursorStyle: string; // Thêm dòng này
-  setCursorStyle: (style: string) => void; // Thêm dòng này
+  customCursor: {
+    normal: string | null; // Base64 ảnh tĩnh
+    pointer: string | null; // Base64 ảnh pointer
+    animated: string | null; // Base64 ảnh động
+    size: number; // Kích thước
+    enableAnimation: boolean; // Bật tắt animation
+  };
+  setCustomCursor: (config: Partial<AppState["customCursor"]>) => void;
 
   backgroundImage: string | null; // Thêm dòng này
   setBackgroundImage: (url: string | null) => void; // Thêm dòng này
@@ -158,14 +165,14 @@ export const useAppStore = create<AppState>()(
       toggleSavedWeatherLocation: (loc) =>
         set((state) => {
           const exists = state.savedWeatherLocations.find(
-            (l) => l.lat === loc.lat && l.lon === loc.lon
+            (l) => l.lat === loc.lat && l.lon === loc.lon,
           );
 
           if (exists) {
             // Nếu đã có -> Xóa đi
             return {
               savedWeatherLocations: state.savedWeatherLocations.filter(
-                (l) => l.lat !== loc.lat
+                (l) => l.lat !== loc.lat,
               ),
             };
           } else {
@@ -189,8 +196,18 @@ export const useAppStore = create<AppState>()(
       toggleMultiWindow: () =>
         set((state) => ({ multiWindowEnabled: !state.multiWindowEnabled })),
 
-      cursorStyle: "default", // Mặc định
-      setCursorStyle: (style) => set({ cursorStyle: style }),
+      cursorStyle: "auto", // Mặc định
+      customCursor: {
+        normal: null,
+        pointer: null,
+        animated: null,
+        size: 32,
+        enableAnimation: false,
+      },
+      setCustomCursor: (config) =>
+        set((state) => ({
+          customCursor: { ...state.customCursor, ...config },
+        })),
 
       backgroundImage: null, // Mặc định là null (dùng nền mặc định của app)
       setBackgroundImage: (url) => set({ backgroundImage: url }),
@@ -204,6 +221,6 @@ export const useAppStore = create<AppState>()(
     }),
     {
       name: "overdesk-storage",
-    }
-  )
+    },
+  ),
 );
