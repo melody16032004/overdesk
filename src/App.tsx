@@ -64,9 +64,9 @@ import { DiceRollerModule } from "./components/features/dashboard/components/Dic
 import { GoalTrackerModule } from "./components/features/dashboard/components/GoalTrackerModule";
 import { TableCreatorModule } from "./components/features/dashboard/modules/table_module/TableCreatorModule";
 import { AIChatModule } from "./components/features/dashboard/components/AIChatModule";
-import { TesterModule } from "./components/features/dashboard/components/TesterModule";
-import { TestScriptModule } from "./components/features/dashboard/components/TestScriptModule";
-import { BugReportModule } from "./components/features/dashboard/components/BugReportModule";
+import { TesterModule } from "./components/features/dashboard/modules/tester_module/TesterModule";
+import { TestScriptModule } from "./components/features/dashboard/modules/testcase_module/TestScriptModule";
+import { BugReportModule } from "./components/features/dashboard/modules/bug_module/BugReportModule";
 import { ResponsiveViewerModule } from "./components/features/dashboard/modules/responsive_view_module/ResponsiveViewerModule";
 import { LibraryModule } from "./components/features/dashboard/modules/library_module/LibraryModule";
 import { PianoModule } from "./components/features/dashboard/components/PianoModule";
@@ -122,7 +122,7 @@ function App() {
     setTasks,
     setNotes,
     setMapSavedLocs,
-    customCursor,
+    // customCursor,
   } = useAppStore();
   const [standaloneApp, setStandaloneApp] = useState<string | null>(null);
 
@@ -195,55 +195,57 @@ function App() {
     }
   }, []);
 
-  useEffect(() => {
-    // Logic tạo CSS
-    let normalUrl = customCursor.normal;
-    if (customCursor.enableAnimation && customCursor.animated) {
-      normalUrl = customCursor.animated;
-    } else if (!normalUrl && customCursor.animated) {
-      normalUrl = customCursor.animated;
-    }
+  // useEffect(() => {
+  //   // Logic tạo CSS
+  //   let normalUrl = customCursor.normal;
+  //   if (customCursor.enableAnimation && customCursor.animated) {
+  //     normalUrl = customCursor.animated;
+  //   } else if (!normalUrl && customCursor.animated) {
+  //     normalUrl = customCursor.animated;
+  //   }
 
-    const pointerUrl = customCursor.pointer;
+  //   const pointerUrl = customCursor.pointer;
 
-    // Tạo thẻ style nếu chưa có
-    let styleTag = document.getElementById("global-cursor-style");
-    if (!styleTag) {
-      styleTag = document.createElement("style");
-      styleTag.id = "global-cursor-style";
-      document.head.appendChild(styleTag);
-    }
+  //   // Tạo thẻ style nếu chưa có
+  //   let styleTag = document.getElementById("global-cursor-style");
+  //   if (!styleTag) {
+  //     styleTag = document.createElement("style");
+  //     styleTag.id = "global-cursor-style";
+  //     document.head.appendChild(styleTag);
+  //   }
 
-    // Xây dựng nội dung CSS
-    let cssContent = "";
+  //   // Xây dựng nội dung CSS
+  //   let cssContent = "";
 
-    // 1. Normal Cursor (Áp dụng cho body)
-    if (normalUrl) {
-      cssContent += `
-        body, html {
-          cursor: url('${normalUrl}') 0 0, auto !important;
-        }
-      `;
-    } else {
-      // Nếu không có custom, dùng cursorStyle cũ hoặc mặc định
-      // (Optional: Reset về auto)
-    }
+  //   // 1. Normal Cursor (Áp dụng cho body)
+  //   if (normalUrl) {
+  //     cssContent += `
+  //       body, html {
+  //         cursor: url('${normalUrl}') 0 0, auto !important;
+  //       }
+  //     `;
+  //   } else {
+  //     // Nếu không có custom, dùng cursorStyle cũ hoặc mặc định
+  //     // (Optional: Reset về auto)
+  //   }
 
-    // 2. Pointer Cursor (Áp dụng cho các element tương tác)
-    if (pointerUrl) {
-      cssContent += `
-        a, button, [role="button"], .pointer, select, input[type="submit"], input[type="image"], label {
-          cursor: url('${pointerUrl}') 0 0, pointer !important;
-        }
-      `;
-    }
+  //   // 2. Pointer Cursor (Áp dụng cho các element tương tác)
+  //   if (pointerUrl) {
+  //     cssContent += `
+  //       a, button, [role="button"], .pointer, select, input[type="submit"], input[type="image"], label {
+  //         cursor: url('${pointerUrl}') 0 0, pointer !important;
+  //       }
+  //     `;
+  //   }
 
-    styleTag.innerHTML = cssContent;
-  }, [customCursor]);
+  //   styleTag.innerHTML = cssContent;
+  // }, [customCursor]);
 
   if (standaloneApp) {
     return (
       <div className="h-full w-full bg-slate-50 dark:bg-[#0f172a] overflow-hidden">
+        <CursorManager />
+
         {standaloneApp === "tasks" && <TaskModule />}
         {standaloneApp === "notes" && <NoteModule />}
         {standaloneApp === "timer" && <TimerModule />}

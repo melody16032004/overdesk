@@ -13,75 +13,31 @@ import {
   Eye,
   PenTool,
 } from "lucide-react";
-
-// --- TYPES & CONFIG ---
-interface BugData {
-  title: string;
-  severity: "Low" | "Medium" | "High" | "Critical";
-  steps: string;
-  expected: string;
-  actual: string;
-  env: string;
-}
-
-const TEMPLATES = {
-  ui: {
-    title: "[UI] Giao diện bị vỡ trên màn hình nhỏ",
-    severity: "Low",
-    steps:
-      "1. Mở trang chủ trên điện thoại (iPhone 12).\n2. Cuộn xuống phần footer.\n3. Quan sát các icon mạng xã hội.",
-    expected: "Các icon phải thẳng hàng và cách đều nhau.",
-    actual: "Các icon bị chồng chéo lên nhau.",
-  },
-  api: {
-    title: "[API] Lỗi 500 khi gửi form liên hệ",
-    severity: "High",
-    steps:
-      "1. Vào trang Liên hệ.\n2. Điền đầy đủ thông tin hợp lệ.\n3. Bấm nút Gửi.",
-    expected: "Hiển thị thông báo thành công và API trả về 200 OK.",
-    actual: "Hiển thị thông báo lỗi 'Server Error' và API trả về 500.",
-  },
-  crash: {
-    title: "[CRASH] Ứng dụng bị thoát đột ngột khi upload ảnh",
-    severity: "Critical",
-    steps: "1. Vào phần Profile.\n2. Bấm đổi Avatar.\n3. Chọn một ảnh > 5MB.",
-    expected: "Ảnh được upload hoặc thông báo dung lượng quá lớn.",
-    actual: "Ứng dụng bị đơ và tự động thoát (Crash).",
-  },
-};
+import { BugData } from "./types/bug_type";
+import { DEFAULT_DATA, TEMPLATES } from "./constants/bug_const";
 
 export const BugReportModule = () => {
-  // --- STATE ---
+  // =========================================
+  // 1. STATE MANAGEMENT
+  // =========================================
+
   const [activeTab, setActiveTab] = useState<"write" | "preview">("write");
+  const [copied, setCopied] = useState(false);
+
   const [data, setData] = useState<BugData>(() => {
     // Auto-load saved draft
     try {
       const saved = localStorage.getItem("bug_report_draft");
-      return saved
-        ? JSON.parse(saved)
-        : {
-            title: "",
-            severity: "Medium",
-            steps: "",
-            expected: "",
-            actual: "",
-            env: "",
-          };
+      return saved ? JSON.parse(saved) : DEFAULT_DATA;
     } catch {
-      return {
-        title: "",
-        severity: "Medium",
-        steps: "",
-        expected: "",
-        actual: "",
-        env: "",
-      };
+      return DEFAULT_DATA;
     }
   });
 
-  const [copied, setCopied] = useState(false);
+  // =========================================
+  // 2. EFFECTS
+  // =========================================
 
-  // --- EFFECTS ---
   // Auto-save draft
   useEffect(() => {
     localStorage.setItem("bug_report_draft", JSON.stringify(data));
@@ -90,9 +46,13 @@ export const BugReportModule = () => {
   // Initial Detect (only if env is empty)
   useEffect(() => {
     if (!data.env) detectEnvironment();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // --- LOGIC ---
+  // =========================================
+  // 3. LOGIC & HELPERS
+  // =========================================
+
   const detectEnvironment = () => {
     const ua = navigator.userAgent;
     const screenRes = `${window.screen.width}x${window.screen.height}`;
@@ -108,7 +68,7 @@ export const BugReportModule = () => {
     const isMobile = /Mobi|Android/i.test(ua);
     const deviceIcon = isMobile ? "📱 Mobile" : "💻 Desktop";
 
-    // FIX: Thêm (navigator as any) để tránh lỗi TS
+    // FIX: Add (navigator as any) to avoid TS error
     const browserName =
       (navigator as any).userAgentData?.brands?.[0]?.brand || navigator.appName;
 
@@ -119,11 +79,6 @@ export const BugReportModule = () => {
 - Time: ${new Date().toLocaleString("vi-VN")}`;
 
     setData((prev) => ({ ...prev, env: envString }));
-  };
-
-  const applyTemplate = (key: keyof typeof TEMPLATES) => {
-    if (data.title && !confirm("Ghi đè nội dung hiện tại bằng mẫu?")) return;
-    setData((prev) => ({ ...prev, ...(TEMPLATES[key] as any) }));
   };
 
   const getSeverityColor = (sev: string) => {
@@ -158,6 +113,15 @@ ${data.steps || "- (Chưa nhập)"}
 > ${data.actual || "(Chưa nhập)"}`;
   };
 
+  // =========================================
+  // 4. ACTIONS
+  // =========================================
+
+  const applyTemplate = (key: keyof typeof TEMPLATES) => {
+    if (data.title && !confirm("Ghi đè nội dung hiện tại bằng mẫu?")) return;
+    setData((prev) => ({ ...prev, ...(TEMPLATES[key] as any) }));
+  };
+
   const handleCopy = () => {
     navigator.clipboard.writeText(generateMarkdown());
     setCopied(true);
@@ -174,13 +138,9 @@ ${data.steps || "- (Chưa nhập)"}
 
   const handleReset = () => {
     if (confirm("Xóa trắng form?")) {
-      const resetData = {
-        title: "",
-        severity: "Medium" as const,
+      const resetData: BugData = {
+        ...DEFAULT_DATA,
         steps: "1. \n2. \n3. ",
-        expected: "",
-        actual: "",
-        env: "",
       };
       setData(resetData);
       setTimeout(detectEnvironment, 100); // Re-detect env after clear
@@ -281,8 +241,8 @@ ${data.steps || "- (Chưa nhập)"}
                   {key === "ui"
                     ? "🎨 UI"
                     : key === "api"
-                    ? "🔌 API"
-                    : "💥 Crash"}
+                      ? "🔌 API"
+                      : "💥 Crash"}
                 </button>
               ))}
             </div>
@@ -313,7 +273,7 @@ ${data.steps || "- (Chưa nhập)"}
                       setData({ ...data, severity: e.target.value as any })
                     }
                     className={`w-full p-3 rounded-lg text-sm font-bold outline-none border appearance-none cursor-pointer ${getSeverityColor(
-                      data.severity
+                      data.severity,
                     )}`}
                   >
                     <option value="Low" className="bg-slate-900 text-slate-300">
@@ -433,7 +393,7 @@ ${data.steps || "- (Chưa nhập)"}
                   <div className="mt-2 flex gap-2">
                     <span
                       className={`text-[10px] font-bold px-2 py-0.5 rounded border ${getSeverityColor(
-                        data.severity
+                        data.severity,
                       )}`}
                     >
                       {data.severity}

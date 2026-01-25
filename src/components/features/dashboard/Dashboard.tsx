@@ -9,8 +9,8 @@ import { useMusicStore } from "../../../stores/useMusicStore";
 import { MiniPlayer } from "./components/MiniPlayer";
 import { DatabaseModule } from "./modules/database_module/DatabaseModule";
 import { ERDiagramModule } from "./modules/er_diagram_module/ERDiagramModule";
-import { TesterModule } from "./components/TesterModule";
-import { TestScriptModule } from "./components/TestScriptModule";
+import { TesterModule } from "./modules/tester_module/TesterModule";
+import { TestScriptModule } from "./modules/testcase_module/TestScriptModule";
 import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { useToastStore } from "../../../stores/useToastStore";
 import { UserWidget } from "./sub_components/UserWidget";
@@ -660,6 +660,7 @@ export const Dashboard = () => {
         activeApp !== "space" &&
         activeApp !== "stargazer" &&
         activeApp !== "responsive" &&
+        activeApp !== "movie" &&
         activeApp !== "qrcode" && (
           <div
             className={`transition-opacity duration-500 ${isWindowHovered || !autoHideUI ? "opacity-100" : "opacity-0"}`}

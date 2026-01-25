@@ -106,6 +106,7 @@ interface AppState {
     animated: string | null; // Base64 ảnh động
     size: number; // Kích thước
     enableAnimation: boolean; // Bật tắt animation
+    isCustomMode: boolean;
   };
   setCustomCursor: (config: Partial<AppState["customCursor"]>) => void;
 
@@ -203,6 +204,7 @@ export const useAppStore = create<AppState>()(
         animated: null,
         size: 32,
         enableAnimation: false,
+        isCustomMode: false,
       },
       setCustomCursor: (config) =>
         set((state) => ({

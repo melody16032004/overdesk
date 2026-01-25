@@ -2,205 +2,48 @@ import { useState, useEffect } from "react";
 import {
   Copy,
   RefreshCw,
-  User,
-  Mail,
-  Phone,
-  CreditCard,
-  Fingerprint,
-  Calendar,
   Check,
   Settings,
   Trash2,
   List,
-  Code2,
   CheckCircle2,
-  MapPin,
-  Shield,
   ShieldCheck,
   Play,
   Plus,
   XCircle,
-  Ruler,
-  ArrowRightLeft,
-  HandshakeIcon,
-  Globe2Icon,
   ClipboardList,
   Braces, // Icon cho nút Format JSON
   RotateCcw, // Icon để reset
 } from "lucide-react";
-
-// --- FAKER ENGINE (Giữ nguyên) ---
-const DB = {
-  first: [
-    "Nguyễn",
-    "Trần",
-    "Lê",
-    "Phạm",
-    "Hoàng",
-    "Huỳnh",
-    "Phan",
-    "Vũ",
-    "Võ",
-    "Đặng",
-    "Bùi",
-    "Đỗ",
-  ],
-  last: [
-    "Văn A",
-    "Thị B",
-    "Minh",
-    "Hùng",
-    "Lan",
-    "Hương",
-    "Tuấn",
-    "Kiệt",
-    "Linh",
-    "Thảo",
-    "Huy",
-    "Nam",
-  ],
-  domains: ["gmail.com", "yahoo.com", "outlook.com", "dev.io", "test.vn"],
-  streets: [
-    "Nguyễn Huệ",
-    "Lê Lợi",
-    "Hàm Nghi",
-    "Pasteur",
-    "Điện Biên Phủ",
-    "Cách Mạng Tháng 8",
-  ],
-  cities: ["HCM", "Hà Nội", "Đà Nẵng", "Cần Thơ", "Hải Phòng"],
-  roles: ["Admin", "User", "Editor", "Viewer", "Tester"],
-  status: ["Active", "Inactive", "Pending", "Banned"],
-};
-
-const rand = (arr: any[]) => arr[Math.floor(Math.random() * arr.length)];
-const randNum = (min: number, max: number) =>
-  Math.floor(Math.random() * (max - min + 1)) + min;
-
-const Generators: Record<string, () => any> = {
-  id: () => randNum(1000, 9999),
-  uuid: () =>
-    "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) =>
-      (c === "x"
-        ? (Math.random() * 16) | 0
-        : (((Math.random() * 16) | 0) & 0x3) | 0x8
-      ).toString(16)
-    ),
-  name: () => `${rand(DB.first)} ${rand(DB.last)}`,
-  email: () => `user.${randNum(1000, 9999)}@${rand(DB.domains)}`,
-  phone: () => `0${randNum(900, 999)}${randNum(1000000, 9999999)}`,
-  role: () => rand(DB.roles),
-  status: () => rand(DB.status),
-  card: () =>
-    `4${randNum(100, 999)} ${randNum(1000, 9999)} ${randNum(
-      1000,
-      9999
-    )} ${randNum(1000, 9999)}`,
-  address: () => `${randNum(1, 999)} ${rand(DB.streets)}, ${rand(DB.cities)}`,
-  date: () =>
-    new Date(Date.now() - randNum(0, 10000000000)).toISOString().split("T")[0],
-  boolean: () => Math.random() > 0.5,
-};
-
-const FIELD_OPTIONS = [
-  { id: "id", label: "ID (Int)", icon: List },
-  { id: "uuid", label: "UUID", icon: Fingerprint },
-  { id: "name", label: "Full Name", icon: User },
-  { id: "email", label: "Email", icon: Mail },
-  { id: "phone", label: "Phone", icon: Phone },
-  { id: "role", label: "Role", icon: Shield },
-  { id: "card", label: "Credit Card", icon: CreditCard },
-  { id: "address", label: "Address", icon: MapPin },
-  { id: "date", label: "Date", icon: Calendar },
-  { id: "status", label: "Status", icon: CheckCircle2 },
-];
-
-// --- VALIDATOR CONFIG ---
-type RuleType =
-  | "required"
-  | "email"
-  | "number"
-  | "string_length"
-  | "number_range"
-  | "enum"
-  | "regex"
-  | "date"
-  | "url";
-
-const RULE_DEFINITIONS: Record<
-  RuleType,
-  { label: string; icon: any; hasParams?: boolean; placeholder?: string }
-> = {
-  required: { label: "Bắt buộc có", icon: CheckCircle2, hasParams: false },
-  email: { label: "Là Email", icon: Mail, hasParams: false },
-  number: { label: "Là Số", icon: HandshakeIcon, hasParams: false },
-  string_length: {
-    label: "Độ dài chuỗi",
-    icon: Ruler,
-    hasParams: true,
-    placeholder: "min,max (VD: 3,20)",
-  },
-  number_range: {
-    label: "Khoảng giá trị",
-    icon: ArrowRightLeft,
-    hasParams: true,
-    placeholder: "min,max (VD: 18,100)",
-  },
-  enum: {
-    label: "Trong danh sách",
-    icon: List,
-    hasParams: true,
-    placeholder: "A,B,C (VD: Admin,User)",
-  },
-  regex: {
-    label: "Regex (Tùy chỉnh)",
-    icon: Code2,
-    hasParams: true,
-    placeholder: "Biểu thức (VD: ^[A-Z]+$)",
-  },
-  date: { label: "Là Ngày (ISO)", icon: Calendar, hasParams: false },
-  url: { label: "Là URL", icon: Globe2Icon, hasParams: false },
-};
-
-interface ValidationRule {
-  id: string;
-  field: string;
-  type: RuleType;
-  params?: string;
-  active: boolean;
-}
-
-interface ValidationResult {
-  rowIndex: number;
-  errors: string[];
-}
-
-type Tab = "generator" | "validator" | "testcase";
-type OutputFormat = "json" | "csv" | "sql";
-
-// Default Data for Reset
-const DEFAULT_JSON =
-  '[\n  {"name": "Nguyen A", "age": 15, "role": "Admin"},\n  {"name": "Tran B", "age": 200, "role": "Guest"},\n  {"name": "", "age": "abc", "role": "User"}\n]';
-const DEFAULT_RULES: ValidationRule[] = [
-  { id: "1", field: "name", type: "required", active: true },
-  {
-    id: "2",
-    field: "age",
-    type: "number_range",
-    params: "18,100",
-    active: true,
-  },
-  { id: "3", field: "role", type: "enum", params: "Admin,User", active: true },
-];
+import {
+  DEFAULT_JSON,
+  DEFAULT_RULES,
+  FIELD_OPTIONS,
+  RULE_DEFINITIONS,
+} from "./constants/tester_const";
+import { Generators, validateValue } from "./helper/tester_helper";
+import {
+  Tab,
+  OutputFormat,
+  ValidationRule,
+  ValidationResult,
+} from "./types/tester_type";
 
 export const TesterModule = ({
   onSwitchApp,
 }: {
   onSwitchApp?: (appId: string) => void;
 }) => {
-  const [activeTab, setActiveTab] = useState<Tab>("validator");
+  // =========================================
+  // 1. STATE MANAGEMENT
+  // =========================================
 
-  // Generator State
+  // --- UI State ---
+  const [activeTab, setActiveTab] = useState<Tab>("validator");
+  const [showResetModal, setShowResetModal] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  // --- Generator State ---
   const [selectedFields, setSelectedFields] = useState<string[]>([
     "id",
     "name",
@@ -211,11 +54,9 @@ export const TesterModule = ({
   const [format, setFormat] = useState<OutputFormat>("json");
   const [genData, setGenData] = useState<any[]>([]);
   const [outputString, setOutputString] = useState("");
-  const [copied, setCopied] = useState(false);
   const [tableName, setTableName] = useState("users");
-  const [showResetModal, setShowResetModal] = useState(false);
 
-  // --- VALIDATOR STATE (WITH PERSISTENCE) ---
+  // --- Validator State (Initialized from LocalStorage) ---
   const [jsonInput, setJsonInput] = useState(() => {
     try {
       return localStorage.getItem("tester_val_input") || DEFAULT_JSON;
@@ -244,14 +85,44 @@ export const TesterModule = ({
 
   const [detectedFields, setDetectedFields] = useState<string[]>([]);
 
-  // --- PERSISTENCE EFFECT ---
+  // =========================================
+  // 2. EFFECTS
+  // =========================================
+
+  // --- Persistence: Save Validator State ---
   useEffect(() => {
     localStorage.setItem("tester_val_input", jsonInput);
     localStorage.setItem("tester_val_rules", JSON.stringify(rules));
     localStorage.setItem("tester_val_results", JSON.stringify(valResults));
   }, [jsonInput, rules, valResults]);
 
-  // --- LOGIC: GENERATOR ---
+  // --- Generator: Initial Data & Auto-format ---
+  useEffect(() => {
+    generateData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    if (genData.length > 0) formatOutput(genData, format);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [format, tableName]);
+
+  // --- Validator: Detect Fields from Input ---
+  useEffect(() => {
+    try {
+      const parsed = JSON.parse(jsonInput);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        setDetectedFields(Object.keys(parsed[0]));
+      }
+    } catch {
+      // Ignore parse errors here, just don't update detected fields
+    }
+  }, [jsonInput]);
+
+  // =========================================
+  // 3. LOGIC: GENERATOR
+  // =========================================
+
   const generateData = () => {
     const newData = Array.from({ length: count }).map(() => {
       const row: any = {};
@@ -264,12 +135,13 @@ export const TesterModule = ({
 
   const formatOutput = (rawData: any[], fmt: OutputFormat) => {
     let result = "";
-    if (fmt === "json") result = JSON.stringify(rawData, null, 2);
-    else if (fmt === "csv") {
+    if (fmt === "json") {
+      result = JSON.stringify(rawData, null, 2);
+    } else if (fmt === "csv") {
       const header = selectedFields.join(",") + "\n";
       const rows = rawData
         .map((row) =>
-          selectedFields.map((field) => `"${row[field]}"`).join(",")
+          selectedFields.map((field) => `"${row[field]}"`).join(","),
         )
         .join("\n");
       result = header + rows;
@@ -282,31 +154,16 @@ export const TesterModule = ({
               return typeof val === "number" ? val : `'${val}'`;
             })
             .join(", ");
-          return `INSERT INTO ${tableName} (${selectedFields.join(
-            ", "
-          )}) VALUES (${values});`;
+          return `INSERT INTO ${tableName} (${selectedFields.join(", ")}) VALUES (${values});`;
         })
         .join("\n");
     }
     setOutputString(result);
   };
 
-  useEffect(() => {
-    if (genData.length > 0) formatOutput(genData, format);
-  }, [format, tableName]);
-  useEffect(() => {
-    generateData();
-  }, []);
-
-  // --- LOGIC: VALIDATOR ---
-  useEffect(() => {
-    try {
-      const parsed = JSON.parse(jsonInput);
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        setDetectedFields(Object.keys(parsed[0]));
-      }
-    } catch {}
-  }, [jsonInput]);
+  // =========================================
+  // 4. LOGIC: VALIDATOR
+  // =========================================
 
   const handleFormatJSON = () => {
     try {
@@ -314,59 +171,6 @@ export const TesterModule = ({
       setJsonInput(JSON.stringify(parsed, null, 2));
     } catch {
       alert("JSON không hợp lệ, không thể format. Vui lòng kiểm tra cú pháp.");
-    }
-  };
-
-  const validateValue = (value: any, rule: ValidationRule): string | null => {
-    const strVal = String(
-      value !== undefined && value !== null ? value : ""
-    ).trim();
-
-    if (rule.type === "required")
-      return strVal === "" ? "Thiếu dữ liệu bắt buộc" : null;
-    if (strVal === "") return null;
-
-    switch (rule.type) {
-      case "email":
-        return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(strVal)
-          ? null
-          : "Email không hợp lệ";
-      case "number":
-        return !isNaN(Number(value)) ? null : "Phải là số";
-      case "url":
-        return /^(https?:\/\/)?([\da-z\.-]+)\.([a-z\.]{2,6})([\/\w \.-]*)*\/?$/.test(
-          strVal
-        )
-          ? null
-          : "URL không hợp lệ";
-      case "date":
-        return !isNaN(Date.parse(strVal)) ? null : "Ngày không hợp lệ";
-      case "string_length":
-        const [minL, maxL] = (rule.params || "0,255").split(",").map(Number);
-        if (strVal.length < minL) return `Quá ngắn (< ${minL} ký tự)`;
-        if (strVal.length > maxL) return `Quá dài (> ${maxL} ký tự)`;
-        return null;
-      case "number_range":
-        const num = Number(value);
-        if (isNaN(num)) return "Không phải số";
-        const [minN, maxN] = (rule.params || "0,100").split(",").map(Number);
-        if (num < minN) return `Giá trị quá nhỏ (< ${minN})`;
-        if (num > maxN) return `Giá trị quá lớn (> ${maxN})`;
-        return null;
-      case "enum":
-        const options = (rule.params || "").split(",").map((s) => s.trim());
-        return options.includes(strVal)
-          ? null
-          : `Giá trị không hợp lệ (Chỉ chấp nhận: ${rule.params})`;
-      case "regex":
-        try {
-          const regex = new RegExp(rule.params || "");
-          return regex.test(strVal) ? null : "Sai định dạng (Regex không khớp)";
-        } catch {
-          return "Lỗi cấu hình Regex";
-        }
-      default:
-        return null;
     }
   };
 
@@ -396,6 +200,7 @@ export const TesterModule = ({
     }
   };
 
+  // --- Rule Management ---
   const addRule = () => {
     const field = detectedFields.length > 0 ? detectedFields[0] : "name";
     setRules([
@@ -406,7 +211,7 @@ export const TesterModule = ({
 
   const updateRule = (id: string, key: keyof ValidationRule, value: any) => {
     setRules((prev) =>
-      prev.map((r) => (r.id === id ? { ...r, [key]: value } : r))
+      prev.map((r) => (r.id === id ? { ...r, [key]: value } : r)),
     );
   };
 
@@ -414,23 +219,24 @@ export const TesterModule = ({
     setRules((prev) => prev.filter((r) => r.id !== id));
   };
 
-  const copyToClipboard = () => {
-    navigator.clipboard.writeText(outputString);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
+  // --- Reset Actions ---
+  const handleResetValidator = () => setShowResetModal(true);
 
-  // 1. Hàm này chỉ có nhiệm vụ mở Modal
-  const handleResetValidator = () => {
-    setShowResetModal(true);
-  };
-
-  // 2. Hàm này mới thực sự Reset dữ liệu (gọi khi bấm nút "Đồng ý" trong Modal)
   const confirmReset = () => {
     setJsonInput(DEFAULT_JSON);
     setRules(DEFAULT_RULES);
     setValResults([]);
-    setShowResetModal(false); // Đóng modal
+    setShowResetModal(false);
+  };
+
+  // =========================================
+  // 5. UTILITIES
+  // =========================================
+
+  const copyToClipboard = () => {
+    navigator.clipboard.writeText(outputString);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   };
 
   return (
@@ -519,7 +325,7 @@ export const TesterModule = ({
                         setSelectedFields((p) =>
                           p.includes(field.id)
                             ? p.filter((f) => f !== field.id)
-                            : [...p, field.id]
+                            : [...p, field.id],
                         )
                       }
                       className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium transition-all border ${
@@ -547,7 +353,7 @@ export const TesterModule = ({
                     max="100"
                     value={count}
                     onChange={(e) => setCount(Number(e.target.value))}
-                    className="w-full accent-indigo-500 h-1 bg-slate-700 rounded-lg appearance-none cursor-pointer"
+                    className="w-full accent-indigo-500 h-1 bg-slate-700 rounded-lg appearance-none pointer"
                   />
                 </div>
                 <div>
@@ -604,8 +410,8 @@ export const TesterModule = ({
                     format === "sql"
                       ? "text-blue-300"
                       : format === "csv"
-                      ? "text-emerald-300"
-                      : "text-yellow-100"
+                        ? "text-emerald-300"
+                        : "text-yellow-100"
                   }`}
                 >
                   {outputString}
@@ -694,7 +500,7 @@ export const TesterModule = ({
                           onChange={(e) =>
                             updateRule(rule.id, "type", e.target.value)
                           }
-                          className="bg-slate-900 text-white text-xs border border-slate-600 rounded px-2 py-1.5 pl-7 outline-none focus:border-indigo-500 appearance-none cursor-pointer min-w-[120px]"
+                          className="bg-slate-900 text-white text-xs border border-slate-600 rounded px-2 py-1.5 pl-7 outline-none focus:border-indigo-500 appearance-none pointer min-w-[120px]"
                         >
                           {Object.entries(RULE_DEFINITIONS).map(
                             ([key, def]) => (
@@ -705,7 +511,7 @@ export const TesterModule = ({
                               >
                                 {def.label}
                               </option>
-                            )
+                            ),
                           )}
                         </select>
                         <div className="absolute left-2 top-1.5 text-indigo-400 pointer-events-none">

@@ -4,9 +4,7 @@ import {
   Plus,
   Trash2,
   CheckCircle2,
-  XCircle,
   AlertCircle,
-  MinusCircle,
   FileSpreadsheet,
   Copy,
   Search,
@@ -25,109 +23,52 @@ import {
   ArrowRightLeft,
   TestTube,
 } from "lucide-react";
-
-// --- TYPES ---
-type TestStatus = "draft" | "passed" | "failed" | "blocked";
-type Priority = "low" | "medium" | "high";
-
-interface Project {
-  id: string;
-  name: string;
-}
-
-interface TestCase {
-  id: string;
-  code: string;
-  projectId: string;
-  title: string;
-  precondition: string;
-  steps: string;
-  expected: string;
-  actual: string;
-  status: TestStatus;
-  priority: Priority;
-}
-
-// --- CONFIG ---
-const STATUS_CONFIG: Record<
+import { PRIORITY_COLORS, STATUS_CONFIG } from "./constants/testcase_const";
+import {
+  ModalState,
+  Project,
+  TestCase,
   TestStatus,
-  { label: string; color: string; icon: any }
-> = {
-  draft: {
-    label: "Draft",
-    color: "text-slate-400 bg-slate-800",
-    icon: MinusCircle,
-  },
-  passed: {
-    label: "Passed",
-    color: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20",
-    icon: CheckCircle2,
-  },
-  failed: {
-    label: "Failed",
-    color: "text-rose-400 bg-rose-500/10 border-rose-500/20",
-    icon: XCircle,
-  },
-  blocked: {
-    label: "Blocked",
-    color: "text-amber-400 bg-amber-500/10 border-amber-500/20",
-    icon: AlertCircle,
-  },
-};
-
-const PRIORITY_COLORS = {
-  low: "text-slate-400",
-  medium: "text-blue-400",
-  high: "text-rose-500 font-bold",
-};
+} from "./types/testcase_type";
 
 export const TestScriptModule = ({
   onSwitchApp,
 }: {
   onSwitchApp?: (appId: string) => void;
 }) => {
-  // --- STATE INITIALIZATION ---
+  // =========================================
+  // 1. STATE INITIALIZATION
+  // =========================================
 
-  // 1. Load Last Session Config (Lấy trạng thái cũ trước)
-  const lastSession = (() => {
+  // --- Helper to load from LocalStorage ---
+  const loadFromStorage = (key: string, defaultValue: any) => {
     try {
-      return JSON.parse(localStorage.getItem("test_last_session") || "{}");
+      const saved = localStorage.getItem(key);
+      return saved ? JSON.parse(saved) : defaultValue;
     } catch {
-      return {};
+      return defaultValue;
     }
-  })();
+  };
 
-  const [projects, setProjects] = useState<Project[]>(() => {
-    try {
-      return JSON.parse(
-        localStorage.getItem("test_projects") ||
-          '[{"id":"main","name":"Main App"}]'
-      );
-    } catch {
-      return [{ id: "main", name: "Main App" }];
-    }
-  });
+  // --- Core Data State ---
+  const [projects, setProjects] = useState<Project[]>(() =>
+    loadFromStorage("test_projects", [{ id: "main", name: "Main App" }]),
+  );
+  const [cases, setCases] = useState<TestCase[]>(() =>
+    loadFromStorage("test_cases", []),
+  );
 
-  // 2. Init Active Project (Khôi phục project đang chọn)
+  // --- UI & Session State ---
+  const lastSession = loadFromStorage("test_last_session", {});
+
   const [activeProjectId, setActiveProjectId] = useState<string>(() => {
     const saved = lastSession.projectId;
     if (saved === "all") return "all";
-    // Kiểm tra xem project cũ còn tồn tại không, nếu không thì về 'all'
     return projects.some((p) => p.id === saved) ? saved : "all";
   });
 
-  const [cases, setCases] = useState<TestCase[]>(() => {
-    try {
-      return JSON.parse(localStorage.getItem("test_cases") || "[]");
-    } catch {
-      return [];
-    }
-  });
-
-  // 3. Init Selected Case (Khôi phục testcase đang làm dở)
   const [selectedId, setSelectedId] = useState<string | null>(() => {
     const saved = lastSession.caseId;
-    // Kiểm tra xem case cũ còn tồn tại không
     return cases.some((c) => c.id === saved) ? saved : null;
   });
 
@@ -135,64 +76,65 @@ export const TestScriptModule = ({
   const [filterStatus, setFilterStatus] = useState<TestStatus | "all">("all");
   const [showSidebar, setShowSidebar] = useState(window.innerWidth >= 768);
 
-  // Modal State
-  const [modal, setModal] = useState<{
-    isOpen: boolean;
-    type:
-      | "delete_case"
-      | "add_project"
-      | "delete_project"
-      | "rename_project"
-      | "move_copy"
-      | null;
-    targetId: string | null;
-    inputValue?: string;
-    actionType?: "move" | "copy";
-  }>({ isOpen: false, type: null, targetId: null });
-
+  // --- Modal State ---
+  const [modal, setModal] = useState<ModalState>({
+    isOpen: false,
+    type: null,
+    targetId: null,
+  });
   const [targetProjectId, setTargetProjectId] = useState<string>("");
 
-  // --- PERSISTENCE & EFFECTS ---
-  useEffect(() => {
-    localStorage.setItem("test_cases", JSON.stringify(cases));
-  }, [cases]);
-  useEffect(() => {
-    localStorage.setItem("test_projects", JSON.stringify(projects));
-  }, [projects]);
+  // =========================================
+  // 2. COMPUTED VALUES
+  // =========================================
 
-  // 4. Save Session Effect (Lưu trạng thái mỗi khi thay đổi)
-  useEffect(() => {
-    localStorage.setItem(
-      "test_last_session",
-      JSON.stringify({ projectId: activeProjectId, caseId: selectedId })
-    );
-  }, [activeProjectId, selectedId]);
-
-  // Auto-select first case ONLY if nothing is selected (Fallback)
-  useEffect(() => {
-    if (cases.length > 0 && !selectedId) {
-      // Chỉ auto-select nếu đang ở project view cụ thể, tránh nhảy loạn khi ở 'all'
-      if (activeProjectId !== "all") {
-        const firstInProject = cases.find(
-          (c) => c.projectId === activeProjectId
-        );
-        if (firstInProject) setSelectedId(firstInProject.id);
-      }
-    }
-  }, [activeProjectId]); // Bỏ dependency `cases` để tránh auto-jump khi đang gõ
-
-  // Logic lọc
   const filteredCases = cases.filter(
     (c) =>
       (activeProjectId === "all" || c.projectId === activeProjectId) &&
       (c.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
         c.code.toLowerCase().includes(searchTerm.toLowerCase())) &&
-      (filterStatus === "all" || c.status === filterStatus)
+      (filterStatus === "all" || c.status === filterStatus),
   );
 
   const currentCase = cases.find((c) => c.id === selectedId);
 
-  // --- ACTIONS: CASES ---
+  // =========================================
+  // 3. EFFECTS
+  // =========================================
+
+  // --- Persistence ---
+  useEffect(() => {
+    localStorage.setItem("test_cases", JSON.stringify(cases));
+  }, [cases]);
+
+  useEffect(() => {
+    localStorage.setItem("test_projects", JSON.stringify(projects));
+  }, [projects]);
+
+  useEffect(() => {
+    localStorage.setItem(
+      "test_last_session",
+      JSON.stringify({ projectId: activeProjectId, caseId: selectedId }),
+    );
+  }, [activeProjectId, selectedId]);
+
+  // --- Auto-select Fallback ---
+  useEffect(() => {
+    if (cases.length > 0 && !selectedId) {
+      if (activeProjectId !== "all") {
+        const firstInProject = cases.find(
+          (c) => c.projectId === activeProjectId,
+        );
+        if (firstInProject) setSelectedId(firstInProject.id);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeProjectId]);
+
+  // =========================================
+  // 4. ACTIONS: CASE MANAGEMENT
+  // =========================================
+
   const addNewCase = () => {
     const targetProject =
       activeProjectId === "all" ? projects[0].id : activeProjectId;
@@ -219,7 +161,7 @@ export const TestScriptModule = ({
   const updateCase = (field: keyof TestCase, value: any) => {
     if (!selectedId) return;
     setCases((prev) =>
-      prev.map((c) => (c.id === selectedId ? { ...c, [field]: value } : c))
+      prev.map((c) => (c.id === selectedId ? { ...c, [field]: value } : c)),
     );
   };
 
@@ -236,7 +178,7 @@ export const TestScriptModule = ({
     setSelectedId(cloned.id);
   };
 
-  // --- MOVE & COPY ---
+  // --- Move & Copy Logic ---
   const openMoveCopyModal = () => {
     if (!currentCase) return;
     const otherProject = projects.find((p) => p.id !== currentCase.projectId);
@@ -255,7 +197,7 @@ export const TestScriptModule = ({
     if (!sourceCase) return;
 
     const targetProjectCases = cases.filter(
-      (c) => c.projectId === targetProjectId
+      (c) => c.projectId === targetProjectId,
     );
     const nextNum = targetProjectCases.length + 1;
     const newCode = `TC-${String(nextNum).padStart(3, "0")}`;
@@ -277,24 +219,28 @@ export const TestScriptModule = ({
         prev.map((c) =>
           c.id === modal.targetId
             ? { ...c, projectId: targetProjectId, code: newCode }
-            : c
-        )
+            : c,
+        ),
       );
       setActiveProjectId(targetProjectId);
     }
     setModal({ isOpen: false, type: null, targetId: null });
   };
 
-  // --- PROJECT ACTIONS ---
+  // =========================================
+  // 5. ACTIONS: PROJECT MANAGEMENT
+  // =========================================
+
   const handleProjectAction = () => {
     const { type, inputValue, targetId } = modal;
+
     if (type === "add_project" && inputValue) {
       const newProj: Project = { id: Date.now().toString(), name: inputValue };
       setProjects([...projects, newProj]);
       setActiveProjectId(newProj.id);
     } else if (type === "rename_project" && targetId && inputValue) {
       setProjects((prev) =>
-        prev.map((p) => (p.id === targetId ? { ...p, name: inputValue } : p))
+        prev.map((p) => (p.id === targetId ? { ...p, name: inputValue } : p)),
       );
     } else if (type === "delete_project" && targetId) {
       if (projects.length <= 1) {
@@ -311,7 +257,10 @@ export const TestScriptModule = ({
     setModal({ isOpen: false, type: null, targetId: null, inputValue: "" });
   };
 
-  // --- EXPORT & HELPER ---
+  // =========================================
+  // 6. EXPORT UTILITIES
+  // =========================================
+
   const exportCSV = () => {
     const header =
       "\uFEFFID,Code,Project,Title,Priority,Status,Precondition,Steps,Expected,Actual\n";
@@ -323,10 +272,10 @@ export const TestScriptModule = ({
           c.priority
         }","${c.status}","${c.precondition.replace(
           /\n/g,
-          " "
+          " ",
         )}","${c.steps.replace(/\n/g, " ")}","${c.expected.replace(
           /\n/g,
-          " "
+          " ",
         )}","${c.actual.replace(/\n/g, " ")}"`;
       })
       .join("\n");
@@ -346,15 +295,15 @@ export const TestScriptModule = ({
         c.status === "passed"
           ? "#d1fae5"
           : c.status === "failed"
-          ? "#ffe4e6"
-          : "#ffffff";
+            ? "#ffe4e6"
+            : "#ffffff";
       const steps = c.steps.replace(
         /\n/g,
-        '<br style="mso-data-placement:same-cell;" />'
+        '<br style="mso-data-placement:same-cell;" />',
       );
       const expected = c.expected.replace(
         /\n/g,
-        '<br style="mso-data-placement:same-cell;" />'
+        '<br style="mso-data-placement:same-cell;" />',
       );
       html += `<tr><td>${c.code}</td><td>${pName}</td><td>${c.title}</td><td>${c.priority}</td><td style="background-color:${statusColor}">${c.status}</td><td>${c.precondition}</td><td>${steps}</td><td>${expected}</td><td>${c.actual}</td></tr>`;
     });
@@ -383,7 +332,6 @@ export const TestScriptModule = ({
           <div>
             <div className="flex items-end gap-1">
               <h3 className="font-bold text-white text-sm">TestCase Studio</h3>
-              <p className="text-[10px] text-slate-400">v0.0</p>
             </div>
             <div className="flex gap-2 text-[10px] text-slate-400">
               <span className="text-teal-400 font-bold">
@@ -462,7 +410,7 @@ export const TestScriptModule = ({
                 <Plus size={12} />
               </button>
             </div>
-            <div className="flex gap-1 overflow-x-auto custom-scrollbar pb-1">
+            <div className="flex gap-1 overflow-x-auto custom-scrollbar pb-1 pt-2">
               <button
                 onClick={() => setActiveProjectId("all")}
                 className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-all border flex items-center gap-1 ${
@@ -559,7 +507,7 @@ export const TestScriptModule = ({
                   setSelectedId(c.id);
                   if (window.innerWidth < 768) setShowSidebar(false);
                 }}
-                className={`group p-3 rounded-xl border cursor-pointer transition-all hover:bg-slate-800 relative ${
+                className={`group p-3 rounded-xl border pointer transition-all hover:bg-slate-800 relative ${
                   selectedId === c.id
                     ? "bg-slate-800 border-indigo-500/50 shadow-md"
                     : "bg-transparent border-transparent"
@@ -668,7 +616,7 @@ export const TestScriptModule = ({
                           onClick={() =>
                             updateCase(
                               "status",
-                              currentCase.status === s ? "draft" : s
+                              currentCase.status === s ? "draft" : s,
                             )
                           }
                           className={`p-1.5 rounded-md transition-all ${

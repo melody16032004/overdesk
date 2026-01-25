@@ -31,19 +31,4 @@ export const CURSORS = [
       ></div>
     ),
   },
-  {
-    id: "pixel",
-    name: "Pixel Retro",
-    // SVG dạng pixel
-    css: `url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24"><path fill="white" stroke="black" stroke-width="1" d="M2 2h2v2h2v2h2v2h2v2h-2v2h-2v2H4v-2H2V2z"/></svg>') 0 0, auto`,
-    preview: (
-      <div className="w-4 h-4 bg-white border border-black transform -rotate-12"></div>
-    ),
-  },
-  {
-    id: "crosshair",
-    name: "Gamer",
-    css: "crosshair",
-    preview: <div className="text-xl">+</div>,
-  },
 ];

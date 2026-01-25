@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from "react";
 import { useAppStore } from "../../../../../../stores/useAppStore";
 
 export const CursorManager = () => {
-  const { customCursor } = useAppStore();
+  const { customCursor, cursorStyle } = useAppStore();
   const cursorRef = useRef<HTMLImageElement>(null);
   const [isHoveringClickable, setIsHoveringClickable] = useState(false);
 
@@ -27,6 +27,10 @@ export const CursorManager = () => {
     if (normalUrl) {
       // Normal cursor đã được resize trong SettingsModule (Base64)
       css += `body, html { cursor: url('${normalUrl}') 0 0, auto !important; }`;
+    } else if (cursorStyle) {
+      // Case B: Fallback to Legacy/Preset Mode (e.g., Neon Blue, Amber, System)
+      // cursorStyle contains the full CSS string (e.g., "crosshair" or "url(...) 0 0, auto")
+      css += `body, html { cursor: ${cursorStyle} !important; }`;
     }
 
     if (pointerUrl) {
@@ -44,12 +48,13 @@ export const CursorManager = () => {
     customCursor.pointer,
     customCursor.enableAnimation,
     customCursor.animated,
+    cursorStyle,
   ]);
 
   // 2. Animated Cursor (Fake DOM Element)
   useEffect(() => {
     if (!customCursor.enableAnimation || !customCursor.animated) {
-      document.body.style.cursor = "auto";
+      document.body.style.cursor = "";
       return;
     }
 
@@ -72,7 +77,7 @@ export const CursorManager = () => {
     window.addEventListener("mousemove", moveCursor);
     return () => {
       window.removeEventListener("mousemove", moveCursor);
-      document.body.style.cursor = "auto";
+      document.body.style.cursor = "";
     };
   }, [customCursor.enableAnimation, customCursor.animated]);
 
