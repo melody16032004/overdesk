@@ -331,7 +331,7 @@ export const DesignModule = () => {
               <div
                 key={idx}
                 onClick={() => setBaseColor(color)}
-                className="aspect-square rounded-lg cursor-pointer border border-[#3e3e42] relative group overflow-hidden"
+                className="aspect-square rounded-lg pointer border border-[#3e3e42] relative group overflow-hidden"
                 style={{ backgroundColor: color }}
               >
                 <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
@@ -384,7 +384,7 @@ export const DesignModule = () => {
                     type="color"
                     value={baseColor}
                     onChange={(e) => setBaseColor(e.target.value)}
-                    className="w-40 h-40 rounded-3xl cursor-pointer opacity-0 absolute inset-0 z-10"
+                    className="w-40 h-40 rounded-3xl pointer opacity-0 absolute inset-0 z-10"
                   />
                   <div
                     className="w-40 h-40 rounded-3xl shadow-2xl border-4 border-[#3e3e42]"
@@ -415,7 +415,7 @@ export const DesignModule = () => {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div
                       onClick={() => copyToClipboard(baseColor)}
-                      className="bg-[#252526] p-3 rounded-xl border border-[#3e3e42] cursor-pointer hover:bg-[#2d2d2d] transition-colors relative group"
+                      className="bg-[#252526] p-3 rounded-xl border border-[#3e3e42] pointer hover:bg-[#2d2d2d] transition-colors relative group"
                     >
                       <div className="text-[10px] font-bold text-slate-500 uppercase">
                         HEX
@@ -435,7 +435,7 @@ export const DesignModule = () => {
                           `rgb(${colorData.rgb.r}, ${colorData.rgb.g}, ${colorData.rgb.b})`,
                         )
                       }
-                      className="bg-[#252526] p-3 rounded-xl border border-[#3e3e42] cursor-pointer hover:bg-[#2d2d2d] transition-colors"
+                      className="bg-[#252526] p-3 rounded-xl border border-[#3e3e42] pointer hover:bg-[#2d2d2d] transition-colors"
                     >
                       <div className="text-[10px] font-bold text-slate-500 uppercase">
                         RGB
@@ -541,14 +541,14 @@ export const DesignModule = () => {
                           val.map((c, i) => (
                             <div
                               key={i}
-                              className="flex-1 cursor-pointer hover:opacity-80"
+                              className="flex-1 pointer hover:opacity-80"
                               style={{ backgroundColor: c }}
                               onClick={() => setBaseColor(c)}
                             ></div>
                           ))
                         ) : (
                           <div
-                            className="flex-1 cursor-pointer hover:opacity-80"
+                            className="flex-1 pointer hover:opacity-80"
                             style={{ backgroundColor: val as string }}
                             onClick={() => setBaseColor(val as string)}
                           ></div>
@@ -583,7 +583,7 @@ export const DesignModule = () => {
                       </span>
                     </div>
                   )}
-                  <label className="flex items-center gap-2 cursor-pointer bg-pink-600 hover:bg-pink-500 text-white px-4 py-2 rounded-lg text-xs font-bold transition-colors shadow-lg">
+                  <label className="flex items-center gap-2 pointer bg-pink-600 hover:bg-pink-500 text-white px-4 py-2 rounded-lg text-xs font-bold transition-colors shadow-lg">
                     <Upload size={14} /> Upload Image
                     <input
                       type="file"
@@ -623,7 +623,7 @@ export const DesignModule = () => {
                                 setBaseColor(color);
                                 saveColorDirectly(color);
                               }}
-                              className="group flex-1 h-12 rounded-lg cursor-pointer relative transition-transform hover:scale-105 hover:shadow-lg"
+                              className="group flex-1 h-12 rounded-lg pointer relative transition-transform hover:scale-105 hover:shadow-lg"
                               style={{ backgroundColor: color }}
                             >
                               <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 bg-black/20 text-white font-mono text-[10px] backdrop-blur-sm rounded-lg transition-opacity">
@@ -662,7 +662,7 @@ export const DesignModule = () => {
                                   setBaseColor(color);
                                   saveColorDirectly(color);
                                 }}
-                                className="aspect-square rounded-sm cursor-pointer hover:scale-125 transition-transform border border-white/5"
+                                className="aspect-square rounded-sm pointer hover:scale-125 transition-transform border border-white/5"
                                 style={{ backgroundColor: color }}
                                 title={color}
                               ></div>
@@ -698,7 +698,7 @@ export const DesignModule = () => {
                             type="color"
                             value={fgColor}
                             onChange={(e) => setFgColor(e.target.value)}
-                            className="absolute inset-0 w-[150%] h-[150%] -top-[25%] -left-[25%] cursor-pointer p-0 border-0"
+                            className="absolute inset-0 w-[150%] h-[150%] -top-[25%] -left-[25%] pointer p-0 border-0"
                           />
                         </div>
                         <div className="flex-1">
@@ -723,7 +723,7 @@ export const DesignModule = () => {
                             type="color"
                             value={bgColor}
                             onChange={(e) => setBgColor(e.target.value)}
-                            className="absolute inset-0 w-[150%] h-[150%] -top-[25%] -left-[25%] cursor-pointer p-0 border-0"
+                            className="absolute inset-0 w-[150%] h-[150%] -top-[25%] -left-[25%] pointer p-0 border-0"
                           />
                         </div>
                         <div className="flex-1">
@@ -1076,7 +1076,7 @@ export const DesignModule = () => {
                             max="360"
                             value={angle}
                             onChange={(e) => setAngle(Number(e.target.value))}
-                            className="w-full h-1.5 bg-[#1e1e1e] rounded-lg accent-white cursor-pointer mt-2"
+                            className="w-full h-1.5 bg-[#1e1e1e] rounded-lg accent-white pointer mt-2"
                           />
                         </div>
                       )}
@@ -1109,7 +1109,7 @@ export const DesignModule = () => {
                                 n[i] = e.target.value;
                                 setGradientStops(n);
                               }}
-                              className="w-8 h-8 rounded cursor-pointer border-0 bg-transparent"
+                              className="w-8 h-8 rounded pointer border-0 bg-transparent"
                             />
                             <input
                               value={stop}

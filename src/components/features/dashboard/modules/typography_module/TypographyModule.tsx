@@ -76,7 +76,7 @@ export const TypographyModule = () => {
 
   // Content
   const [editableText, setEditableText] = useState(
-    "Typography is the art of arranging type."
+    "Typography is the art of arranging type.",
   );
   const [copied, setCopied] = useState(false);
 
@@ -234,7 +234,7 @@ export const TypographyModule = () => {
                 max="24"
                 value={baseSize}
                 onChange={(e) => setBaseSize(Number(e.target.value))}
-                className="w-full h-1.5 bg-[#1e1e1e] rounded-lg accent-yellow-500 cursor-pointer"
+                className="w-full h-1.5 bg-[#1e1e1e] rounded-lg accent-yellow-500 pointer"
               />
             </div>
             <div className="space-y-2">
@@ -270,7 +270,7 @@ export const TypographyModule = () => {
                 step="0.05"
                 value={lineHeight}
                 onChange={(e) => setLineHeight(Number(e.target.value))}
-                className="w-full h-1.5 bg-[#1e1e1e] rounded-lg accent-yellow-500 cursor-pointer"
+                className="w-full h-1.5 bg-[#1e1e1e] rounded-lg accent-yellow-500 pointer"
               />
             </div>
             <div className="space-y-2">
@@ -287,7 +287,7 @@ export const TypographyModule = () => {
                 step="100"
                 value={headerWeight}
                 onChange={(e) => setHeaderWeight(Number(e.target.value))}
-                className="w-full h-1.5 bg-[#1e1e1e] rounded-lg accent-yellow-500 cursor-pointer"
+                className="w-full h-1.5 bg-[#1e1e1e] rounded-lg accent-yellow-500 pointer"
               />
             </div>
           </div>
@@ -395,9 +395,9 @@ export const TypographyModule = () => {
                             (t) =>
                               `        '${t.label.toLowerCase()}': ['${
                                 t.rem
-                              }rem', { lineHeight: '${lineHeight}' }],`
+                              }rem', { lineHeight: '${lineHeight}' }],`,
                           )
-                          .join("\n")}\n      }\n    }\n  }\n}`
+                          .join("\n")}\n      }\n    }\n  }\n}`,
                       )
                     }
                     className="text-[10px] bg-[#3e3e42] hover:bg-[#4e4e52] text-white px-3 py-1.5 rounded flex items-center gap-2 transition-colors"
@@ -412,7 +412,7 @@ ${typeScale
     (t) =>
       `  '${t.label.toLowerCase()}': ['${
         t.rem
-      }rem', { lineHeight: '${lineHeight}' }],`
+      }rem', { lineHeight: '${lineHeight}' }],`,
   )
   .join("\n")}
 },

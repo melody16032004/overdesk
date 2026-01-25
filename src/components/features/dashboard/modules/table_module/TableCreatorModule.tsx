@@ -361,7 +361,7 @@ export const TableCreatorModule = () => {
             <div
               key={t.id}
               onClick={() => handleLoadTable(t)}
-              className={`group border rounded-xl p-3 cursor-pointer transition-all ${
+              className={`group border rounded-xl p-3 pointer transition-all ${
                 currentId === t.id
                   ? "bg-slate-800 border-emerald-500/50 ring-1 ring-emerald-500/30"
                   : "bg-slate-800/50 border-slate-700 hover:bg-slate-800 hover:border-slate-600"
@@ -699,7 +699,7 @@ export const TableCreatorModule = () => {
                         </th>
                       ))}
                       <th
-                        className="w-10 p-0 bg-slate-800/50 hover:bg-indigo-500/20 transition-colors cursor-pointer border-b border-slate-600"
+                        className="w-10 p-0 bg-slate-800/50 hover:bg-indigo-500/20 transition-colors pointer border-b border-slate-600"
                         onClick={addCol}
                       >
                         <div className="flex items-center justify-center h-full text-slate-500 hover:text-indigo-400">

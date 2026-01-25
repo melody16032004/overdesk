@@ -419,7 +419,7 @@ export const CodeModule = () => {
               <div
                 key={s.id}
                 onClick={() => loadSnippet(s)}
-                className="group flex items-center justify-between p-2 rounded-md hover:bg-[#37373d] cursor-pointer transition-colors border border-transparent hover:border-[#454545]"
+                className="group flex items-center justify-between p-2 rounded-md hover:bg-[#37373d] pointer transition-colors border border-transparent hover:border-[#454545]"
               >
                 <div className="min-w-0">
                   <div className="text-xs font-bold text-gray-200 truncate">

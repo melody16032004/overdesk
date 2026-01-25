@@ -602,7 +602,7 @@ export const UIBuilderModule = () => {
                               ] as Size,
                             })
                           }
-                          className="w-full accent-indigo-500 h-1.5 bg-white/10 rounded-lg appearance-none cursor-pointer"
+                          className="w-full accent-indigo-500 h-1.5 bg-white/10 rounded-lg appearance-none pointer"
                         />
                       </div>
                       <div className="space-y-1.5">
@@ -624,7 +624,7 @@ export const UIBuilderModule = () => {
                               ] as Radius,
                             })
                           }
-                          className="w-full accent-indigo-500 h-1.5 bg-white/10 rounded-lg appearance-none cursor-pointer"
+                          className="w-full accent-indigo-500 h-1.5 bg-white/10 rounded-lg appearance-none pointer"
                         />
                       </div>
                       <div className="space-y-1.5">
@@ -646,7 +646,7 @@ export const UIBuilderModule = () => {
                               ] as Shadow,
                             })
                           }
-                          className="w-full accent-indigo-500 h-1.5 bg-white/10 rounded-lg appearance-none cursor-pointer"
+                          className="w-full accent-indigo-500 h-1.5 bg-white/10 rounded-lg appearance-none pointer"
                         />
                       </div>
                     </div>
@@ -1016,7 +1016,7 @@ export const UIBuilderModule = () => {
                       key={comp.id}
                       // [UPDATE] Thêm onClick vào đây để click toàn bộ card
                       onClick={() => handleLoad(comp)}
-                      className="group relative bg-[#18181b] hover:bg-[#1f1f23] rounded-2xl border border-white/5 hover:border-indigo-500/30 transition-all duration-300 flex flex-col overflow-hidden shadow-sm hover:shadow-xl hover:shadow-indigo-500/5 cursor-pointer"
+                      className="group relative bg-[#18181b] hover:bg-[#1f1f23] rounded-2xl border border-white/5 hover:border-indigo-500/30 transition-all duration-300 flex flex-col overflow-hidden shadow-sm hover:shadow-xl hover:shadow-indigo-500/5 pointer"
                     >
                       {/* Card Header & Actions */}
                       <div className="p-4 flex items-start justify-between gap-3 relative z-10">

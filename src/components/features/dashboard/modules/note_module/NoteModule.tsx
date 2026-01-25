@@ -105,7 +105,7 @@ export const NoteModule = () => {
     <div
       onClick={() => setActiveNoteId(note.id)}
       className={clsx(
-        "group relative p-4 rounded-xl border cursor-pointer transition-all duration-300",
+        "group relative p-4 rounded-xl border pointer transition-all duration-300",
         "hover:shadow-md dark:hover:shadow-none dark:hover:bg-white/10",
         noteViewSettings.mode === "grid"
           ? "aspect-[4/3] flex flex-col justify-between"
@@ -339,7 +339,7 @@ export const NoteModule = () => {
                 step="1"
                 value={noteViewSettings.gridColumns}
                 onChange={(e) => setGridColumns(Number(e.target.value))}
-                className="w-12 sm:w-16 h-1 bg-slate-200 dark:bg-white/20 rounded-lg appearance-none cursor-pointer accent-blue-500"
+                className="w-12 sm:w-16 h-1 bg-slate-200 dark:bg-white/20 rounded-lg appearance-none pointer accent-blue-500"
               />
             </div>
           )}

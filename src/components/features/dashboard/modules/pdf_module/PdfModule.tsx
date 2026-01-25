@@ -374,7 +374,7 @@ export const PdfModule = () => {
             {/* UPLOAD AREA */}
             <div
               onClick={() => fileInputRef.current?.click()}
-              className="border-2 border-dashed border-slate-700 bg-slate-800/30 rounded-2xl h-40 flex flex-col items-center justify-center cursor-pointer hover:bg-slate-800/50 hover:border-slate-500 transition-all group mb-6"
+              className="border-2 border-dashed border-slate-700 bg-slate-800/30 rounded-2xl h-40 flex flex-col items-center justify-center pointer hover:bg-slate-800/50 hover:border-slate-500 transition-all group mb-6"
             >
               <div className="p-3 bg-slate-800 rounded-full mb-3 group-hover:scale-110 transition-transform shadow-lg">
                 <FileUp size={24} className="text-slate-400" />

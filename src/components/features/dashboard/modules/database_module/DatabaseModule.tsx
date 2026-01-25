@@ -369,7 +369,7 @@ export const DatabaseModule = ({
                 setIsSidebarOpen(false);
                 setSearchQuery("");
               }}
-              className={`group flex items-center justify-between px-3 py-2.5 rounded-lg cursor-pointer text-xs font-medium transition-all ${
+              className={`group flex items-center justify-between px-3 py-2.5 rounded-lg pointer text-xs font-medium transition-all ${
                 activeTableId === t.id
                   ? "bg-blue-600 text-white"
                   : "hover:bg-[#3e3e42] text-slate-400"
@@ -946,7 +946,7 @@ export const DatabaseModule = ({
                     className={`w-full bg-[#1e1e1e] border border-[#3e3e42] rounded-xl px-3 py-2.5 text-sm text-white focus:border-purple-500 outline-none appearance-none ${
                       !!editingColId
                         ? "opacity-50 cursor-not-allowed text-slate-400"
-                        : "cursor-pointer"
+                        : "pointer"
                     }`}
                   >
                     <option value="string">String</option>

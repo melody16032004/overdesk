@@ -272,7 +272,7 @@ ${data.steps || "- (Chưa nhập)"}
                     onChange={(e) =>
                       setData({ ...data, severity: e.target.value as any })
                     }
-                    className={`w-full p-3 rounded-lg text-sm font-bold outline-none border appearance-none cursor-pointer ${getSeverityColor(
+                    className={`w-full p-3 rounded-lg text-sm font-bold outline-none border appearance-none pointer ${getSeverityColor(
                       data.severity,
                     )}`}
                   >

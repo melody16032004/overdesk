@@ -293,7 +293,7 @@ export const WordModule = () => {
             <div className="flex flex-col gap-1 items-center justify-center">
               <div className="flex gap-1 items-center">
                 <select
-                  className="text-[11px] border border-slate-300 rounded px-1 h-[24px] w-36 outline-none focus:border-blue-500 cursor-pointer"
+                  className="text-[11px] border border-slate-300 rounded px-1 h-[24px] w-36 outline-none focus:border-blue-500 pointer"
                   onChange={(e) =>
                     editor.chain().focus().setFontFamily(e.target.value).run()
                   }
@@ -312,7 +312,7 @@ export const WordModule = () => {
                 </select>
                 <input
                   type="color"
-                  className="w-6 h-[24px] p-0 border border-slate-300 rounded cursor-pointer"
+                  className="w-6 h-[24px] p-0 border border-slate-300 rounded pointer"
                   title="Màu chữ"
                   onInput={(e: any) =>
                     editor.chain().focus().setColor(e.target.value).run()

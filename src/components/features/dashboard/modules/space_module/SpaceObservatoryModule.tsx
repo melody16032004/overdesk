@@ -308,7 +308,7 @@ const SpaceObservatoryModule = () => {
                     planet-clickable
                     absolute top-1/2 right-0 
                     -translate-y-1/2 translate-x-1/2 
-                    rounded-full cursor-pointer transition-all z-10 pointer-events-auto group
+                    rounded-full pointer transition-all z-10 pointer-events-auto group
                     ${planet.color}
                     ${selectedPlanet?.id === planet.id ? "ring-4 ring-white/40 scale-110 z-50" : "hover:scale-110 hover:z-20"}
                   `}

@@ -358,7 +358,7 @@ export const SnippetModule = () => {
               <div
                 key={s.id}
                 onClick={() => handleSelect(s.id)}
-                className={`group relative p-3 rounded-xl cursor-pointer border transition-all ${
+                className={`group relative p-3 rounded-xl pointer border transition-all ${
                   selectedId === s.id
                     ? "bg-gradient-to-r from-[#3e3e42] to-[#323236] border-slate-500 shadow-md"
                     : "border-transparent hover:bg-[#2a2d2e] hover:border-[#3e3e42]"
@@ -458,7 +458,7 @@ export const SnippetModule = () => {
                       <select
                         value={editLang}
                         onChange={(e) => setEditLang(e.target.value)}
-                        className="w-full bg-[#1e1e1e] text-slate-300 px-3 py-2 rounded-lg border border-[#3e3e42] text-xs outline-none appearance-none cursor-pointer focus:border-yellow-500"
+                        className="w-full bg-[#1e1e1e] text-slate-300 px-3 py-2 rounded-lg border border-[#3e3e42] text-xs outline-none appearance-none pointer focus:border-yellow-500"
                       >
                         {SUPPORTED_LANGS.map((l) => (
                           <option key={l.id} value={l.id}>

@@ -284,7 +284,7 @@ export const CronDockerModule = () => {
                       setFormService(svc);
                       setIsMobileMenuOpen(false);
                     }}
-                    className={`flex items-center justify-between p-2.5 rounded-lg cursor-pointer text-xs font-bold transition-all ${
+                    className={`flex items-center justify-between p-2.5 rounded-lg pointer text-xs font-bold transition-all ${
                       activeServiceId === svc.id
                         ? "bg-blue-600 text-white shadow-lg"
                         : "text-slate-400 hover:bg-[#3e3e42] border border-transparent hover:border-[#454545]"

@@ -205,7 +205,7 @@ export const CalendarModule = () => {
             setSelectedDate(dateStr);
             if (window.innerWidth < 768) setShowMobileDetail(true);
           }}
-          className={`min-h-[80px] md:min-h-[100px] border-r border-b border-[#3e3e42] p-1 transition-all relative group cursor-pointer 
+          className={`min-h-[80px] md:min-h-[100px] border-r border-b border-[#3e3e42] p-1 transition-all relative group pointer 
                     ${
                       isSelected
                         ? "bg-[#2d2d2d] shadow-inner"
@@ -528,7 +528,7 @@ export const CalendarModule = () => {
                     onChange={(e) =>
                       setNewEventRepeat(e.target.value as RepeatType)
                     }
-                    className="w-full bg-[#2d2d2d] border border-[#3e3e42] rounded-xl px-3 py-2.5 text-sm text-white focus:border-blue-500 outline-none appearance-none cursor-pointer"
+                    className="w-full bg-[#2d2d2d] border border-[#3e3e42] rounded-xl px-3 py-2.5 text-sm text-white focus:border-blue-500 outline-none appearance-none pointer"
                   >
                     <option value="none">No Repeat</option>
                     <option value="daily">Daily</option>

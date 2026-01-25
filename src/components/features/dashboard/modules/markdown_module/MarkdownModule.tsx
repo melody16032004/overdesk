@@ -205,7 +205,7 @@ export const MarkdownModule = () => {
               type="checkbox"
               checked={props.checked}
               onChange={() => toggleCheckbox(currentIndex)}
-              className="mr-2 w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 cursor-pointer"
+              className="mr-2 w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 pointer"
             />
           );
         }
@@ -650,7 +650,7 @@ export const MarkdownModule = () => {
                       key={i}
                       style={{ marginLeft: `${(header.level - 1) * 12}px` }}
                     >
-                      <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400 hover:text-blue-500 truncate cursor-pointer transition-colors">
+                      <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400 hover:text-blue-500 truncate pointer transition-colors">
                         <ChevronRight size={10} className="opacity-50" />{" "}
                         {header.text}
                       </div>

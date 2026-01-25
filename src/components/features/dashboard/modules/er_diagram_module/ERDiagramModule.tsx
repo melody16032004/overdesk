@@ -250,7 +250,7 @@ export const ERDiagramModule = ({
                     fill="none"
                     stroke="transparent"
                     strokeWidth="20"
-                    className="cursor-pointer"
+                    className="pointer"
                   />
                   <path
                     d={pathData}
@@ -757,7 +757,7 @@ export const ERDiagramModule = ({
               <div
                 key={d.id}
                 onClick={() => setActiveDiagramId(d.id)}
-                className="bg-[#252526] border border-[#3e3e42] rounded-xl p-5 cursor-pointer hover:border-blue-500/50 hover:bg-[#2d2d2d] transition-all group relative flex flex-col h-40"
+                className="bg-[#252526] border border-[#3e3e42] rounded-xl p-5 pointer hover:border-blue-500/50 hover:bg-[#2d2d2d] transition-all group relative flex flex-col h-40"
               >
                 <div className="flex justify-between items-start mb-auto">
                   <div className="p-3 bg-blue-500/10 rounded-lg text-blue-400 group-hover:bg-blue-500 group-hover:text-white transition-colors">
@@ -1116,7 +1116,7 @@ export const ERDiagramModule = ({
                               onMouseUp={(e) =>
                                 handleColumnMouseUp(e, table.id)
                               }
-                              className="absolute -left-2 w-4 h-4 flex items-center justify-center cursor-pointer z-50"
+                              className="absolute -left-2 w-4 h-4 flex items-center justify-center pointer z-50"
                             >
                               <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
                             </div>
@@ -1209,7 +1209,7 @@ export const ERDiagramModule = ({
                       <div
                         key={t.id}
                         onClick={() => toggleDbTableSelection(t.id)}
-                        className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer border transition-all ${
+                        className={`flex items-center gap-3 p-3 rounded-lg pointer border transition-all ${
                           isSelected
                             ? "bg-blue-600/10 border-blue-600 text-white"
                             : "bg-[#1e1e1e] border-[#3e3e42] text-slate-400 hover:border-slate-500"

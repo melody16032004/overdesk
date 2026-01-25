@@ -322,7 +322,7 @@ export const TaskModule = () => {
                       />
                       <button
                         onClick={() => dateInputRef.current?.showPicker()}
-                        className={`flex items-center gap-1.5 px-2 py-1 rounded-md text-[10px] font-medium border transition-colors cursor-pointer select-none ${
+                        className={`flex items-center gap-1.5 px-2 py-1 rounded-md text-[10px] font-medium border transition-colors pointer select-none ${
                           dueDate
                             ? "bg-indigo-50 text-indigo-600 border-indigo-200 dark:bg-indigo-500/20 dark:text-indigo-300 dark:border-indigo-500/30"
                             : "bg-slate-50 text-slate-500 border-slate-200 dark:bg-white/5 dark:text-slate-400 dark:border-white/10 hover:bg-slate-100 dark:hover:bg-white/10"

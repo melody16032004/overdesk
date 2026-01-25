@@ -401,7 +401,7 @@ export const LibraryModule = () => {
                         onClick={() =>
                           handleCopy(getSingleCommand(lib), lib.id)
                         }
-                        className="flex-1 bg-[#0f172a] rounded-lg px-2 py-1.5 flex items-center justify-between cursor-pointer group/cmd border border-slate-700 hover:border-indigo-500 transition-colors"
+                        className="flex-1 bg-[#0f172a] rounded-lg px-2 py-1.5 flex items-center justify-between pointer group/cmd border border-slate-700 hover:border-indigo-500 transition-colors"
                       >
                         <code className="text-[10px] font-mono text-emerald-400 truncate mr-2 flex-1">
                           <span className="text-slate-500 select-none">$ </span>
@@ -459,7 +459,7 @@ export const LibraryModule = () => {
                 <span>{selectedLibs.length} Selected</span>
               </div>
               <div
-                className="flex-1 w-full bg-slate-900 rounded-lg border border-slate-700 px-3 py-2 flex items-center justify-between group cursor-pointer hover:border-indigo-500 transition-colors"
+                className="flex-1 w-full bg-slate-900 rounded-lg border border-slate-700 px-3 py-2 flex items-center justify-between group pointer hover:border-indigo-500 transition-colors"
                 onClick={() => handleCopy(getBulkCommand(), "bulk")}
               >
                 <code className="text-xs font-mono text-emerald-400 truncate mr-2">
@@ -643,7 +643,7 @@ export const LibraryModule = () => {
                       className="w-full bg-slate-900 border border-slate-600 rounded-lg p-2.5 text-sm text-white outline-none focus:border-indigo-500 h-20 resize-none"
                     />
                   </div>
-                  <label className="flex items-center gap-2 cursor-pointer p-2 rounded-lg hover:bg-slate-800 border border-transparent hover:border-slate-700 transition-all">
+                  <label className="flex items-center gap-2 pointer p-2 rounded-lg hover:bg-slate-800 border border-transparent hover:border-slate-700 transition-all">
                     <input
                       type="checkbox"
                       checked={modal.data.isDev || false}

@@ -388,7 +388,7 @@ const PostMockupView = () => {
               )}
               <span
                 className={clsx(
-                  "text-[13px] hover:underline cursor-pointer ml-1",
+                  "text-[13px] hover:underline pointer ml-1",
                   config.isDark ? "text-[#b0b3b8]" : "text-slate-500",
                 )}
               >
@@ -418,7 +418,7 @@ const PostMockupView = () => {
               <div
                 key={action}
                 className={clsx(
-                  "flex-1 flex items-center justify-center gap-2 py-1.5 rounded-md font-medium text-[14px] transition-colors cursor-pointer",
+                  "flex-1 flex items-center justify-center gap-2 py-1.5 rounded-md font-medium text-[14px] transition-colors pointer",
                   config.isDark
                     ? "text-[#b0b3b8] hover:bg-[#3a3b3c]"
                     : "text-slate-500 hover:bg-slate-100",
@@ -860,7 +860,7 @@ const UtilityToolsView = () => {
                   className={clsx(
                     "flex items-center justify-between p-3 rounded-xl border transition-all group w-full",
                     uid
-                      ? "bg-white border-slate-100 hover:border-orange-200 hover:bg-orange-50 cursor-pointer"
+                      ? "bg-white border-slate-100 hover:border-orange-200 hover:bg-orange-50 pointer"
                       : "bg-slate-50 border-transparent opacity-50 cursor-not-allowed",
                   )}
                 >
@@ -933,7 +933,7 @@ const Toggle = ({
   checked: boolean;
   onChange: () => void;
 }) => (
-  <label className="flex items-center gap-2 cursor-pointer select-none">
+  <label className="flex items-center gap-2 pointer select-none">
     <div
       className={clsx(
         "w-9 h-5 rounded-full relative transition-colors",
@@ -968,7 +968,7 @@ const UploadButton = ({
 }) => (
   <label
     className={clsx(
-      "flex flex-col items-center justify-center h-20 border border-dashed rounded-xl cursor-pointer transition-all gap-1",
+      "flex flex-col items-center justify-center h-20 border border-dashed rounded-xl pointer transition-all gap-1",
       active
         ? "border-blue-500 bg-blue-50 text-blue-600"
         : "border-slate-300 hover:bg-slate-50 text-slate-400",

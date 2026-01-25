@@ -138,7 +138,7 @@ export const PeriodicTableModule = () => {
                 step="10"
                 value={temperature}
                 onChange={(e) => setTemperature(Number(e.target.value))}
-                className="h-1 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-emerald-500"
+                className="h-1 bg-slate-700 rounded-lg appearance-none pointer accent-emerald-500"
               />
             </div>
             <span className="text-sm font-mono w-16 text-right text-white">
@@ -249,7 +249,7 @@ export const PeriodicTableModule = () => {
                       }}
                       className={`
                                 periodic-element
-                                relative aspect-square flex flex-col justify-between p-1.5 rounded-md cursor-pointer border transition-all duration-300
+                                relative aspect-square flex flex-col justify-between p-1.5 rounded-md pointer border transition-all duration-300
                                 hover:scale-125 hover:z-10 hover:shadow-xl hover:ring-1 hover:ring-white/50
                                 ${getElementStyle(el.category)}
                                 ${isDimmed ? "opacity-20 grayscale scale-90" : "opacity-100"}

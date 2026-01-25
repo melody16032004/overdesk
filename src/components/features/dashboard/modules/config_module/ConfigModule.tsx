@@ -304,7 +304,7 @@ export const ConfigModule = ({
               <div
                 key={preset.id}
                 onClick={() => triggerApplyCustom(preset)}
-                className={`group relative flex flex-col items-center justify-center p-2 min-w-[80px] rounded-lg border transition-all shrink-0 cursor-pointer
+                className={`group relative flex flex-col items-center justify-center p-2 min-w-[80px] rounded-lg border transition-all shrink-0 pointer
                   ${
                     activePresetId === preset.id
                       ? "bg-indigo-600 border-indigo-400 ring-2 ring-indigo-500/50 shadow-lg scale-105" // Active style

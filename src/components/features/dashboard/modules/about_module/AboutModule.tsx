@@ -156,7 +156,7 @@ export const AboutModule = () => {
       <div className="flex-none pt-8 pb-4 text-center z-10 relative">
         <div
           onClick={handleLogoClick}
-          className="w-20 h-20 mx-auto bg-gradient-to-br from-blue-500 to-indigo-600 rounded-[1.5rem] shadow-xl shadow-blue-500/30 flex items-center justify-center mb-3 transform hover:scale-105 active:scale-95 transition-all duration-300 cursor-pointer group relative"
+          className="w-20 h-20 mx-auto bg-gradient-to-br from-blue-500 to-indigo-600 rounded-[1.5rem] shadow-xl shadow-blue-500/30 flex items-center justify-center mb-3 transform hover:scale-105 active:scale-95 transition-all duration-300 pointer group relative"
         >
           <Box
             size={40}

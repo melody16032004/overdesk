@@ -207,7 +207,7 @@ export const JwtModule = () => {
                 setToken(item.token);
                 setIsSidebarOpen(false);
               }}
-              className={`group relative p-3 rounded-lg cursor-pointer border border-transparent hover:bg-[#3e3e42] transition-all pr-8 ${
+              className={`group relative p-3 rounded-lg pointer border border-transparent hover:bg-[#3e3e42] transition-all pr-8 ${
                 token === item.token ? "bg-[#3e3e42] border-slate-600" : ""
               }`}
             >

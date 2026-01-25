@@ -554,7 +554,7 @@ export const SignatureModule = () => {
                     type="color"
                     value={penColor}
                     onChange={(e) => setPenColor(e.target.value)}
-                    className="w-6 h-6 rounded cursor-pointer bg-transparent border-none"
+                    className="w-6 h-6 rounded pointer bg-transparent border-none"
                   />
                 </div>
                 <div className="flex gap-2">
@@ -587,7 +587,7 @@ export const SignatureModule = () => {
                     step="0.5"
                     value={penWidth}
                     onChange={(e) => setPenWidth(Number(e.target.value))}
-                    className="w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:bg-indigo-500 [&::-webkit-slider-thumb]:rounded-full"
+                    className="w-full h-1.5 bg-slate-700 rounded-lg appearance-none pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:bg-indigo-500 [&::-webkit-slider-thumb]:rounded-full"
                   />
                 </div>
               </div>

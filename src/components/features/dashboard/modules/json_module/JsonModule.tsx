@@ -632,7 +632,7 @@ export const JsonModule = () => {
               <div
                 key={f.id}
                 onClick={() => loadFromLibrary(f)}
-                className="group flex items-center justify-between p-2 rounded-md hover:bg-[#37373d] cursor-pointer transition-colors border border-transparent hover:border-[#454545]"
+                className="group flex items-center justify-between p-2 rounded-md hover:bg-[#37373d] pointer transition-colors border border-transparent hover:border-[#454545]"
               >
                 <div className="min-w-0">
                   <div className="text-xs font-bold text-gray-200 truncate flex items-center gap-2">
@@ -748,7 +748,7 @@ export const JsonModule = () => {
                         onChange={(e) =>
                           updateField(field.id, "type", e.target.value)
                         }
-                        className="appearance-none bg-[#252526] hover:bg-[#3e3e42] text-xs text-slate-400 font-bold px-2 py-2 rounded border border-[#3e3e42] outline-none cursor-pointer w-[70px]"
+                        className="appearance-none bg-[#252526] hover:bg-[#3e3e42] text-xs text-slate-400 font-bold px-2 py-2 rounded border border-[#3e3e42] outline-none pointer w-[70px]"
                       >
                         <option value="string">Str</option>
                         <option value="number">Num</option>

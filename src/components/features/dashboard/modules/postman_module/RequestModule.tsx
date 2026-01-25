@@ -171,7 +171,7 @@ export const RequestModule = () => {
             <select
               value={method}
               onChange={(e) => setMethod(e.target.value)}
-              className="w-full h-10 bg-[#1e1e1e] border border-[#3e3e42] rounded-lg px-3 text-xs font-bold appearance-none outline-none cursor-pointer focus:border-blue-500"
+              className="w-full h-10 bg-[#1e1e1e] border border-[#3e3e42] rounded-lg px-3 text-xs font-bold appearance-none outline-none pointer focus:border-blue-500"
               style={{
                 color:
                   METHODS.find((m) => m.label === method)?.color?.replace(
@@ -235,7 +235,7 @@ export const RequestModule = () => {
                       setMethod(h.method);
                       setShowHistory(false);
                     }}
-                    className="px-3 py-2 hover:bg-[#3e3e42] cursor-pointer flex items-center justify-between group"
+                    className="px-3 py-2 hover:bg-[#3e3e42] pointer flex items-center justify-between group"
                   >
                     <div className="flex items-center gap-2 overflow-hidden">
                       <span

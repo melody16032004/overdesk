@@ -304,7 +304,7 @@ export const FileExplorerModule = () => {
     return items.map((item) => (
       <div key={item.id}>
         <div
-          className={`flex items-center justify-between px-2 py-1.5 cursor-pointer text-xs select-none group transition-colors 
+          className={`flex items-center justify-between px-2 py-1.5 pointer text-xs select-none group transition-colors 
           ${
             item.id === activeFileId
               ? "bg-slate-700 text-white"
@@ -492,7 +492,7 @@ export const FileExplorerModule = () => {
                       key={fid}
                       onClick={() => handleOpenFile(file)}
                       className={`
-                                        group flex items-center gap-2 px-3 py-2 text-xs cursor-pointer border-r border-[#3e3e42] min-w-[100px] max-w-[200px]
+                                        group flex items-center gap-2 px-3 py-2 text-xs pointer border-r border-[#3e3e42] min-w-[100px] max-w-[200px]
                                         ${
                                           isActive
                                             ? "bg-[#1e1e1e] text-white border-t-2 border-t-blue-500"

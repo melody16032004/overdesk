@@ -628,7 +628,7 @@ export const ResponsiveViewerModule = () => {
               <ZoomOut size={18} />
             </button>
             <div
-              className="w-12 text-center text-xs font-bold text-indigo-400 cursor-pointer hover:underline"
+              className="w-12 text-center text-xs font-bold text-indigo-400 pointer hover:underline"
               onClick={() => handleZoomToFit()}
               title="Reset Zoom & Pan"
             >

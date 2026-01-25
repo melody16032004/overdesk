@@ -597,7 +597,7 @@ export const FrameAnimationUltimate = () => {
           )}
         </div>
         <div className="p-3 grid grid-cols-2 gap-2">
-          <label className="flex flex-col items-center justify-center h-16 border border-dashed border-zinc-600 rounded bg-zinc-900/50 hover:bg-zinc-800 cursor-pointer group">
+          <label className="flex flex-col items-center justify-center h-16 border border-dashed border-zinc-600 rounded bg-zinc-900/50 hover:bg-zinc-800 pointer group">
             <Upload
               className="text-zinc-500 group-hover:text-indigo-400"
               size={16}
@@ -626,7 +626,7 @@ export const FrameAnimationUltimate = () => {
           {animGroups.map((group) => (
             <div
               key={group.id}
-              className={`group p-2 rounded cursor-pointer flex items-center gap-2 relative border select-none ${
+              className={`group p-2 rounded pointer flex items-center gap-2 relative border select-none ${
                 focusedId === group.id
                   ? "bg-indigo-600/10 border-indigo-500/50 text-indigo-100"
                   : "bg-transparent border-transparent hover:bg-white/5 text-zinc-400"
@@ -641,7 +641,7 @@ export const FrameAnimationUltimate = () => {
                   else newSet.add(group.id);
                   setActiveIds(newSet);
                 }}
-                className="text-zinc-500 hover:text-white cursor-pointer"
+                className="text-zinc-500 hover:text-white pointer"
               >
                 {activeIds.has(group.id) ? (
                   <CheckSquare size={16} className="text-indigo-400" />
@@ -764,7 +764,7 @@ export const FrameAnimationUltimate = () => {
                 type="color"
                 value={bgColor}
                 onChange={(e) => setBgColor(e.target.value)}
-                className="w-4 h-4 rounded-full cursor-pointer bg-transparent border-none p-0"
+                className="w-4 h-4 rounded-full pointer bg-transparent border-none p-0"
               />
             </div>
           </div>
@@ -815,7 +815,7 @@ export const FrameAnimationUltimate = () => {
                 max="60"
                 value={fps}
                 onChange={(e) => setFps(Number(e.target.value))}
-                className="w-full h-1 bg-zinc-700 rounded-lg accent-indigo-500 cursor-pointer"
+                className="w-full h-1 bg-zinc-700 rounded-lg accent-indigo-500 pointer"
               />
             </div>
             <div className="flex-1 flex flex-col gap-1">
@@ -830,7 +830,7 @@ export const FrameAnimationUltimate = () => {
                 step="0.1"
                 value={scale}
                 onChange={(e) => setScale(Number(e.target.value))}
-                className="w-full h-1 bg-zinc-700 rounded-lg accent-indigo-500 cursor-pointer"
+                className="w-full h-1 bg-zinc-700 rounded-lg accent-indigo-500 pointer"
               />
             </div>
           </div>

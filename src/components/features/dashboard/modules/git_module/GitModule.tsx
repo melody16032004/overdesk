@@ -266,7 +266,7 @@ export const GitModule = () => {
                     <select
                       value={commitType}
                       onChange={(e) => setCommitType(e.target.value)}
-                      className="bg-[#010409] border border-[#30363d] rounded px-2 py-2 text-xs text-white focus:border-[#238636] outline-none cursor-pointer"
+                      className="bg-[#010409] border border-[#30363d] rounded px-2 py-2 text-xs text-white focus:border-[#238636] outline-none pointer"
                     >
                       {COMMIT_TYPES.map((t) => (
                         <option key={t.value} value={t.value}>
@@ -380,7 +380,7 @@ export const GitModule = () => {
                   <div
                     key={h.login}
                     onClick={() => fetchGitHub(h.login)}
-                    className="flex items-center gap-1.5 bg-[#161b22] hover:bg-[#21262d] border border-[#30363d] rounded-full pl-1 pr-2 py-0.5 cursor-pointer transition-colors group shrink-0"
+                    className="flex items-center gap-1.5 bg-[#161b22] hover:bg-[#21262d] border border-[#30363d] rounded-full pl-1 pr-2 py-0.5 pointer transition-colors group shrink-0"
                   >
                     <img src={h.avatar} className="w-4 h-4 rounded-full" />
                     <span className="text-xs text-slate-300">{h.login}</span>
@@ -494,7 +494,7 @@ export const GitModule = () => {
             {CHEATSHEET.map((item, idx) => (
               <div
                 key={idx}
-                className="group flex justify-between items-center p-2 rounded-md hover:bg-[#161b22] border border-transparent hover:border-[#30363d] transition-colors cursor-pointer"
+                className="group flex justify-between items-center p-2 rounded-md hover:bg-[#161b22] border border-transparent hover:border-[#30363d] transition-colors pointer"
                 onClick={() => handleCopy(item.cmd)}
               >
                 <div>

@@ -421,7 +421,7 @@ export const Space3DModule = () => {
                 step="0.1"
                 value={timeScale}
                 onChange={(e) => setTimeScale(parseFloat(e.target.value))}
-                className="w-16 accent-indigo-400 h-1 bg-white/20 rounded-lg cursor-pointer"
+                className="w-16 accent-indigo-400 h-1 bg-white/20 rounded-lg pointer"
               />
               <span className="text-[10px] text-white font-mono w-8">
                 {timeScale}x
@@ -571,7 +571,7 @@ export const Space3DModule = () => {
                 onChange={(e) =>
                   setSceneConfig({ ...sceneConfig, bgColor: e.target.value })
                 }
-                className="w-6 h-6 rounded bg-transparent border-0 p-0 cursor-pointer"
+                className="w-6 h-6 rounded bg-transparent border-0 p-0 pointer"
               />
             </div>
             <div className="space-y-1">
@@ -595,7 +595,7 @@ export const Space3DModule = () => {
                     ambientIntensity: parseFloat(e.target.value),
                   })
                 }
-                className="w-full accent-indigo-500 h-1 bg-white/10 rounded-lg appearance-none cursor-pointer"
+                className="w-full accent-indigo-500 h-1 bg-white/10 rounded-lg appearance-none pointer"
               />
             </div>
             {/* [NEW] Factory Reset Button */}
@@ -685,7 +685,7 @@ export const Space3DModule = () => {
                   key={obj.id}
                   onClick={(e) => handleSelect(e, obj.id)}
                   className={clsx(
-                    "flex items-center justify-between p-1.5 rounded cursor-pointer text-[10px] group transition-all",
+                    "flex items-center justify-between p-1.5 rounded pointer text-[10px] group transition-all",
                     selectedIds.includes(obj.id)
                       ? "bg-indigo-600 text-white"
                       : "hover:bg-white/5 text-gray-400",
@@ -869,7 +869,7 @@ export const Space3DModule = () => {
                       color: e.target.value,
                     })
                   }
-                  className="w-full h-8 rounded cursor-pointer bg-transparent border-0 p-0"
+                  className="w-full h-8 rounded pointer bg-transparent border-0 p-0"
                 />
               </div>
             </div>
@@ -895,7 +895,7 @@ export const Space3DModule = () => {
                       mass: parseFloat(e.target.value),
                     })
                   }
-                  className="w-full accent-rose-500 h-1 bg-white/10 rounded-lg appearance-none cursor-pointer"
+                  className="w-full accent-rose-500 h-1 bg-white/10 rounded-lg appearance-none pointer"
                 />
               </div>
               <div className="space-y-1">
@@ -916,7 +916,7 @@ export const Space3DModule = () => {
                       bounciness: parseFloat(e.target.value),
                     })
                   }
-                  className="w-full accent-rose-500 h-1 bg-white/10 rounded-lg appearance-none cursor-pointer"
+                  className="w-full accent-rose-500 h-1 bg-white/10 rounded-lg appearance-none pointer"
                 />
               </div>
             </div>
