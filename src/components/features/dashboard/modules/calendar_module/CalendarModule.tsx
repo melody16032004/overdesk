@@ -11,6 +11,7 @@ import {
   X,
   RefreshCw,
   Repeat,
+  Edit2, // Added Edit Icon
 } from "lucide-react";
 import {
   getLocalDateString,
@@ -19,6 +20,7 @@ import {
   getDaysInMonth,
 } from "./helper/calendar_helper";
 import { CalendarEvent, RepeatType } from "./types/calendar_type";
+import { CustomDatePicker } from "../../../../shares/CustomDatePicker";
 
 export const CalendarModule = () => {
   // --- STATE ---
@@ -33,10 +35,16 @@ export const CalendarModule = () => {
   const [showMobileDetail, setShowMobileDetail] = useState(false);
   const [filterType, setFilterType] = useState<"all" | "event" | "task">("all");
 
+  // [NEW] Filter by specific date highlight
+  const [filterDate, setFilterDate] = useState<string>("");
+
   // Form State
   const [newEventTitle, setNewEventTitle] = useState("");
   const [newEventDesc, setNewEventDesc] = useState("");
   const [newEventRepeat, setNewEventRepeat] = useState<RepeatType>("none");
+
+  // [NEW] Editing State
+  const [editingEventId, setEditingEventId] = useState<string | null>(null);
 
   // --- EFFECTS ---
   useEffect(() => {
@@ -100,29 +108,63 @@ export const CalendarModule = () => {
     setEvents([...localEvents, ...taskEvents]);
   };
 
+  const openEditModal = (event: CalendarEvent) => {
+    setNewEventTitle(event.title);
+    setNewEventDesc(event.desc || "");
+    setNewEventRepeat(event.repeat || "none");
+    setSelectedDate(event.date); // Set date to event's original date
+    setEditingEventId(event.id);
+    setShowModal(true);
+  };
+
   const saveEvent = () => {
     if (!newEventTitle.trim()) return;
-    const newEvent: CalendarEvent = {
-      id: `evt_${Date.now()}`,
-      title: newEventTitle,
-      date: selectedDate,
-      type: "event",
-      repeat: newEventRepeat,
-      color: "bg-emerald-500",
-      desc: newEventDesc,
-    };
 
     const currentLocal = JSON.parse(
       localStorage.getItem("dashboard_calendar_events") || "[]",
     );
-    localStorage.setItem(
-      "dashboard_calendar_events",
-      JSON.stringify([...currentLocal, newEvent]),
-    );
 
+    if (editingEventId) {
+      // Update existing event
+      const updatedEvents = currentLocal.map((e: CalendarEvent) =>
+        e.id === editingEventId
+          ? {
+              ...e,
+              title: newEventTitle,
+              desc: newEventDesc,
+              repeat: newEventRepeat,
+              date: selectedDate, // Allow changing date
+            }
+          : e,
+      );
+      localStorage.setItem(
+        "dashboard_calendar_events",
+        JSON.stringify(updatedEvents),
+      );
+    } else {
+      // Create new event
+      const newEvent: CalendarEvent = {
+        id: `evt_${Date.now()}`,
+        title: newEventTitle,
+        date: selectedDate,
+        type: "event",
+        repeat: newEventRepeat,
+        color: "bg-emerald-500",
+        desc: newEventDesc,
+      };
+      localStorage.setItem(
+        "dashboard_calendar_events",
+        JSON.stringify([...currentLocal, newEvent]),
+      );
+    }
+
+    window.dispatchEvent(new Event("storage"));
+
+    // Reset Form
     setNewEventTitle("");
     setNewEventDesc("");
     setNewEventRepeat("none");
+    setEditingEventId(null);
     setShowModal(false);
     loadData();
   };
@@ -157,6 +199,8 @@ export const CalendarModule = () => {
         JSON.stringify(currentLocal.filter((e: any) => e.id !== id)),
       );
       loadData();
+
+      window.dispatchEvent(new Event("storage"));
     }
   };
 
@@ -169,6 +213,8 @@ export const CalendarModule = () => {
     );
     localStorage.setItem("dashboard_tasks", JSON.stringify(updatedTasks));
     loadData();
+
+    window.dispatchEvent(new Event("storage"));
   };
 
   // --- UI RENDERERS ---
@@ -193,6 +239,8 @@ export const CalendarModule = () => {
       const dateStr = getLocalDateString(new Date(year, month, d));
       const isToday = dateStr === todayStr;
       const isSelected = dateStr === selectedDate;
+      // [NEW] Logic to highlight filtered date
+      const isFilteredMatch = filterDate === dateStr;
 
       const dayEvents = filteredEvents.filter((e) =>
         isEventOccurringOnDate(e, dateStr),
@@ -212,13 +260,16 @@ export const CalendarModule = () => {
                         : "hover:bg-[#252526]"
                     }
                     ${isToday ? "bg-blue-500/5" : ""}
+                    ${isFilteredMatch ? "ring-2 ring-inset ring-yellow-500 bg-yellow-500/10" : ""} 
                   `}
         >
           <div
             className={`text-xs font-bold w-6 h-6 flex items-center justify-center rounded-full mb-1 transition-transform ${
               isToday
                 ? "bg-blue-600 text-white scale-110 shadow-lg shadow-blue-500/30"
-                : "text-slate-400"
+                : isFilteredMatch
+                  ? "bg-yellow-500 text-black scale-110" // Highlight number bubble
+                  : "text-slate-400"
             }`}
           >
             {d}
@@ -259,6 +310,10 @@ export const CalendarModule = () => {
             onClick={(e) => {
               e.stopPropagation();
               setSelectedDate(dateStr);
+              setEditingEventId(null); // Ensure we are in create mode
+              setNewEventTitle("");
+              setNewEventDesc("");
+              setNewEventRepeat("none");
               setShowModal(true);
             }}
             className="absolute bottom-1 right-1 p-1 rounded bg-[#3e3e42] text-white opacity-0 group-hover:opacity-100 transition-all hover:bg-blue-600 hidden md:block"
@@ -275,7 +330,8 @@ export const CalendarModule = () => {
     <div className="h-full flex bg-[#1e1e1e] text-slate-300 font-sans overflow-hidden relative">
       {/* LEFT: CALENDAR GRID */}
       <div className="flex-1 flex flex-col min-w-0 bg-[#1e1e1e]">
-        <div className="flex-none p-3 md:p-4 border-b border-[#3e3e42] bg-[#252526] flex items-center justify-between z-20 shadow-md">
+        <div className="flex-none p-3 md:p-4 border-b border-[#3e3e42] bg-[#252526] flex items-center justify-between z-20 shadow-md flex-wrap gap-2">
+          {/* Header Left: Month Nav & Title */}
           <div className="flex items-center gap-2 md:gap-4">
             <div className="flex bg-[#1e1e1e] rounded-lg p-0.5 border border-[#3e3e42]">
               <button
@@ -300,8 +356,22 @@ export const CalendarModule = () => {
             </h2>
           </div>
 
+          {/* Header Right: Filters & Actions */}
           <div className="flex items-center gap-2">
-            <div className="hidden md:flex bg-[#1e1e1e] rounded-lg p-0.5 border border-[#3e3e42] text-[10px] font-bold">
+            {/* [NEW] Date Filter Input */}
+            <CustomDatePicker
+              value={filterDate}
+              onChange={(date) => {
+                setFilterDate(date);
+                if (date) {
+                  // Nếu user chọn ngày, tự động nhảy lịch to đến tháng đó luôn
+                  setCurrentDate(new Date(date));
+                }
+              }}
+              placeholder="Filter Date"
+            />
+
+            <div className="flex bg-[#1e1e1e] rounded-lg p-0.5 border border-[#3e3e42] text-[10px] font-bold">
               <button
                 onClick={() => setFilterType("all")}
                 className={`px-2 py-1 rounded transition-colors ${
@@ -397,7 +467,13 @@ export const CalendarModule = () => {
             })}
           </div>
           <button
-            onClick={() => setShowModal(true)}
+            onClick={() => {
+              setEditingEventId(null);
+              setNewEventTitle("");
+              setNewEventDesc("");
+              setNewEventRepeat("none");
+              setShowModal(true);
+            }}
             className="w-full py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-sm font-bold flex items-center justify-center gap-2 shadow-lg shadow-blue-900/20 transition-all"
           >
             <Plus size={16} /> Add Event
@@ -469,12 +545,26 @@ export const CalendarModule = () => {
                     )}
                   </div>
                 </div>
-                <button
-                  onClick={() => deleteEvent(evt.id, evt.type)}
-                  className="absolute top-3 right-3 text-slate-600 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
-                >
-                  <Trash2 size={14} />
-                </button>
+
+                <div className="absolute top-3 right-3 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                  {/* [NEW] Edit Button - Only for events, not tasks (tasks managed elsewhere usually) */}
+                  {evt.type === "event" && (
+                    <button
+                      onClick={() => openEditModal(evt)}
+                      className="text-slate-600 hover:text-blue-400"
+                      title="Edit Event"
+                    >
+                      <Edit2 size={14} />
+                    </button>
+                  )}
+                  <button
+                    onClick={() => deleteEvent(evt.id, evt.type)}
+                    className="text-slate-600 hover:text-red-400"
+                    title="Delete Event"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </div>
               </div>
             ))
           )}
@@ -487,7 +577,9 @@ export const CalendarModule = () => {
           <div className="w-full max-w-sm bg-[#1e1e1e] border border-[#3e3e42] rounded-2xl shadow-2xl overflow-hidden">
             <div className="p-4 border-b border-[#3e3e42] bg-[#252526] flex justify-between items-center">
               <h3 className="text-sm font-bold text-white uppercase tracking-widest flex items-center gap-2">
-                <CalendarIcon size={16} className="text-blue-500" /> New Event
+                <CalendarIcon size={16} className="text-blue-500" />
+                {editingEventId ? "Edit Event" : "New Event"}{" "}
+                {/* [NEW] Dynamic Title */}
               </h3>
               <button onClick={() => setShowModal(false)}>
                 <X size={18} className="text-slate-400 hover:text-white" />
@@ -555,7 +647,7 @@ export const CalendarModule = () => {
                 onClick={saveEvent}
                 className="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold text-sm shadow-lg shadow-blue-900/20 transition-all mt-2"
               >
-                Create Event
+                {editingEventId ? "Update Event" : "Create Event"}
               </button>
             </div>
           </div>

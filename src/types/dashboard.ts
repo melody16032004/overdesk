@@ -5,4 +5,5 @@ export interface DashboardApp {
   color?: any;
   desc?: string;
   disabled?: boolean;
+  number_notify?: number;
 }

@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@breezystack/lamejs": "^1.2.7",
+    "@fabianlars/tauri-plugin-oauth": "github:fabianlars/tauri-plugin-oauth",
     "@ffmpeg/ffmpeg": "^0.12.15",
     "@ffmpeg/util": "^0.12.2",
     "@fortune-sheet/react": "^1.0.4",

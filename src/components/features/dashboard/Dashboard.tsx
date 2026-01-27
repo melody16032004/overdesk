@@ -1,5 +1,7 @@
 // src/features/dashboard/Dashboard.tsx
 import React, { useState, useEffect, useRef, useLayoutEffect } from "react";
+import logoImg from "/images/overdesk_logo.png";
+import newMsgSound from "/sounds/messages/notification_2.mp3";
 import { check } from "@tauri-apps/plugin-updater";
 
 import { useAppStore } from "../../../stores/useAppStore";
@@ -22,6 +24,11 @@ import { ArrowUp, ChevronLeft, EyeOff, Search, X } from "lucide-react";
 import { UpdatePopup } from "./sub_components/UpdatePopup";
 import { APP_COMPONENTS } from "./constants/APP_COMPONENTS";
 import { ConfigModule } from "./modules/config_module/ConfigModule";
+import { countTomorrowEvents } from "./modules/calendar_module/helper/calendar_helper";
+// [BƯỚC 1] IMPORT MAIL SERVICE & HOOK
+import { useGmailAuth } from "./modules/mail_module/hooks/useGmailAuth";
+import { getInboxUnreadCountLimit20 } from "./modules/mail_module/services/gmail_service";
+import { playSendSound } from "./modules/mail_module/helper/mail_helper";
 
 // --- 1. CONFIG & HELPERS (Đặt bên ngoài Component để tránh khởi tạo lại) ---
 // Hàm khôi phục Apps từ LocalStorage và map lại Icon
@@ -64,7 +71,75 @@ export const Dashboard = () => {
     cursorStyle,
     backgroundImage,
     autoHideUI,
+    appNotifications,
+    setAppNotification,
   } = useAppStore();
+
+  // [BƯỚC 2] LẤY ACCESS TOKEN TỪ GMAIL AUTH
+  // Hook này sẽ tự động check và lấy token từ localStorage
+  const { accessToken, isTokenValid } = useGmailAuth();
+  const mailTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const lastCountRef = useRef(0);
+
+  // [BƯỚC 3] TEST LOG SERVICE MAIL (Loop 10s)
+  // --- EFFECT: CHẠY NGẦM CHECK MAIL (AN TOÀN & TIẾT KIỆM) ---
+  useEffect(() => {
+    // Hàm check mail nội bộ
+    const runCheck = async () => {
+      // 1. Nếu đang ẩn tab thì không fetch, hẹn 5s sau check lại
+      if (document.visibilityState === "hidden") {
+        mailTimerRef.current = setTimeout(runCheck, 5000);
+        return;
+      }
+
+      // 2. Logic Fetch
+      // Lưu ý: Check isTokenValid() trực tiếp trong hàm, KHÔNG đưa vào dependency
+      if (accessToken && isTokenValid()) {
+        try {
+          // Gọi hàm tối ưu (chỉ tốn 2 request nhẹ)
+          const count = await getInboxUnreadCountLimit20(accessToken, 15);
+
+          // Cập nhật Store
+          setAppNotification("email", count);
+
+          if (count > lastCountRef.current) {
+            playSendSound(newMsgSound);
+          }
+
+          lastCountRef.current = count;
+        } catch (error: any) {
+          // Nếu bị chặn (429), chờ lâu hơn (2 phút)
+          if (error?.status === 403 || error?.status === 429) {
+            console.warn("Rate limit hit, cooling down...");
+            mailTimerRef.current = setTimeout(runCheck, 60000);
+            return;
+          }
+        }
+      }
+
+      // 3. QUAN TRỌNG: Hẹn giờ lần chạy tiếp theo (60s)
+      // Chỉ khi code chạy tới đây (tức là request trước đã xong) mới hẹn giờ tiếp
+      mailTimerRef.current = setTimeout(runCheck, 15000);
+    };
+
+    // --- KHỞI ĐỘNG ---
+    // Xóa timer cũ nếu có (để tránh chạy trùng 2 timer)
+    if (mailTimerRef.current) clearTimeout(mailTimerRef.current);
+
+    // Delay 3 giây khi mới vào Dashboard để UI load xong đã rồi mới fetch
+    mailTimerRef.current = setTimeout(runCheck, 1500);
+
+    // --- CLEANUP ---
+    return () => {
+      if (mailTimerRef.current) {
+        clearTimeout(mailTimerRef.current);
+      }
+    };
+
+    // [QUAN TRỌNG] Dependency chỉ để mỗi accessToken.
+    // Bỏ isTokenValid ra khỏi đây vì nếu nó là function, nó sẽ thay đổi mỗi lần render gây lặp vô tận.
+  }, [accessToken]);
+
   const { showToast } = useToastStore();
   const { playlist } = useMusicStore();
 
@@ -140,6 +215,40 @@ export const Dashboard = () => {
     };
   }, [cursorStyle]);
 
+  // 5: Kiểm tra thông báo định kỳ
+  useEffect(() => {
+    const checkNotifications = () => {
+      // 1. Calendar: Đếm sự kiện ngày mai
+      const calendarCount = countTomorrowEvents();
+      setAppNotification("calendar", calendarCount);
+
+      // 2. Có thể thêm logic cho các app khác ở đây (VD: Mail, Todo...)
+    };
+
+    checkNotifications(); // Chạy ngay lập tức
+
+    // Lắng nghe sự kiện storage (khi Calendar/Task thay đổi ở tab khác hoặc module khác)
+    const handleStorageChange = () => checkNotifications();
+    window.addEventListener("storage", handleStorageChange);
+
+    // (Tùy chọn) Interval 1 phút check 1 lần
+    const interval = setInterval(checkNotifications, 60000);
+
+    return () => {
+      window.removeEventListener("storage", handleStorageChange);
+      clearInterval(interval);
+    };
+  }, []);
+
+  // 6: Tự động check lại thông báo mỗi khi quay về màn hình chính
+  useEffect(() => {
+    if (!activeApp) {
+      // Import hàm helper đếm sự kiện
+      const calendarCount = countTomorrowEvents();
+      // Cập nhật Store
+      setAppNotification("calendar", calendarCount);
+    }
+  }, [activeApp]); // Chạy mỗi khi đóng/mở app
   // --- E. HANDLERS (LOGIC XỬ LÝ) ---
 
   const scrollToTop = () => {
@@ -361,12 +470,7 @@ export const Dashboard = () => {
             <div className="flex items-center gap-3 min-w-0 overflow-hidden">
               {/* Logo box: Thêm backdrop-blur để đẹp hơn trên nền ảnh */}
               <div className="w-10 h-10 shrink-0 rounded-xl bg-slate-900/90 dark:bg-slate-300 backdrop-blur-md flex items-center justify-center text-white dark:text-slate-900 shadow-lg">
-                {/* <Grid size={20} /> */}
-                <img
-                  src="/overdesk_logo.png"
-                  alt="OverDesk Logo"
-                  // className="w-6 h-6"
-                />
+                <img src={logoImg} alt="OverDesk Logo" className="w-10 h-10" />
               </div>
               <div className="truncate drop-shadow-sm">
                 <div className="inline-flex items-end gap-1">
@@ -406,6 +510,9 @@ export const Dashboard = () => {
                 const isHighlighted = highlightedIds.includes(app.id);
                 // Nếu đang tìm kiếm mà không match thì làm mờ đi
                 const isDimmed = highlightedIds.length > 0 && !isHighlighted;
+
+                const notifyCount =
+                  appNotifications[app.id] ?? app.number_notify ?? 0;
 
                 return (
                   <button
@@ -461,6 +568,19 @@ export const Dashboard = () => {
                       <div className="text-[9px] text-slate-600 dark:text-slate-300 font-medium">
                         {app.desc}
                       </div>
+                      {notifyCount > 0 && (
+                        <div
+                          className={`
+                          ${notifyCount > 9 ? "px-0 py-1.5" : "px-2 py-1"} 
+                          bg-red-500 rounded-full
+                          absolute top-1 right-5 text-[9px]
+                          font-bold text-white shadow-sm
+                          border border-white dark:border-slate-800
+                          min-w-[15px] flex justify-center z-20`}
+                        >
+                          {notifyCount > 99 ? "99+" : notifyCount}
+                        </div>
+                      )}
                     </div>
                     {app.disabled && (
                       <div
@@ -661,6 +781,7 @@ export const Dashboard = () => {
         activeApp !== "stargazer" &&
         activeApp !== "responsive" &&
         activeApp !== "movie" &&
+        activeApp !== "email" &&
         activeApp !== "qrcode" && (
           <div
             className={`transition-opacity duration-500 ${isWindowHovered || !autoHideUI ? "opacity-100" : "opacity-0"}`}

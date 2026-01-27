@@ -1,9 +1,12 @@
 // src-tauri/src/lib.rs
 use std::sync::Mutex;
-use tauri::{AppHandle, Manager};
+use tauri::{AppHandle, Emitter, Manager};
 // Import plugin shortcut
 use tauri_plugin_global_shortcut::{Code, Modifiers, ShortcutState};
 // Import sysinfo (Logic CPU/RAM)
+use std::io::{Read, Write};
+use std::net::TcpListener;
+use std::thread;
 use sysinfo::{CpuRefreshKind, MemoryRefreshKind, RefreshKind, System};
 use tauri::State;
 
@@ -76,6 +79,72 @@ fn toggle_main_window(app: &AppHandle) {
     }
 }
 
+// 1. Thêm hàm này vào (Hàm tạo server thủ công)
+#[tauri::command]
+fn start_google_server(app: AppHandle) {
+    // println!("🚀 RUST: Đang khởi động Server 127.0.0.1:8090...");
+    thread::spawn(move || {
+        let addr = "127.0.0.1:8090";
+        match TcpListener::bind(addr) {
+            Ok(listener) => {
+                // println!("✅ RUST: Server đang lắng nghe...");
+
+                // Vòng lặp để xử lý 2 bước (Bước 1: Nhận Hash, Bước 2: Nhận Token thật)
+                for stream in listener.incoming() {
+                    match stream {
+                        Ok(mut stream) => {
+                            let mut buffer = [0; 2048];
+                            let _ = stream.read(&mut buffer);
+                            let request = String::from_utf8_lossy(&buffer);
+
+                            // 1. Kiểm tra xem có phải là request chứa Token thật không (Bước 2)
+                            if request.contains("GET /callback") {
+                                if let Some(first_line) = request.lines().next() {
+                                    let parts: Vec<&str> = first_line.split_whitespace().collect();
+                                    if parts.len() > 1 {
+                                        // Tạo URL giả lập để React dễ parse
+                                        let url = format!("http://{}{}", addr, parts[1]);
+                                        // println!("🔥 RUST: BẮT ĐƯỢC TOKEN! Bắn về UI: {}", url);
+                                        let _ = app.emit("google_auth_callback", url);
+                                    }
+                                }
+
+                                // Trả lời xong thì đóng server luôn
+                                let response = "HTTP/1.1 200 OK\r\n\r\n<script>window.close()</script><h1>Login OK!</h1>";
+                                let _ = stream.write_all(response.as_bytes());
+                                break; // Thoát vòng lặp -> Tắt server
+                            }
+                            // 2. Nếu là request đầu tiên từ Google (Bước 1 - chỉ có Hash #)
+                            else {
+                                // Trả về trang JS để biến Hash (#) thành Query (?) và gọi lại /callback
+                                let html = r#"
+                                    <html><body><script>
+                                        // Lấy token từ dấu thăng (#)
+                                        var hash = window.location.hash;
+                                        if (hash) {
+                                            // Gọi lại server với dạng query (?) để Rust đọc được
+                                            fetch('/callback' + hash.replace('#', '?'));
+                                            document.body.innerHTML = '<h1>Dang xu ly...</h1>';
+                                        } else {
+                                            // Phòng trường hợp Google trả về query sẵn
+                                            var search = window.location.search;
+                                            if (search) fetch('/callback' + search);
+                                        }
+                                    </script></body></html>
+                                "#;
+                                let response = format!("HTTP/1.1 200 OK\r\n\r\n{}", html);
+                                let _ = stream.write_all(response.as_bytes());
+                            }
+                        }
+                        Err(_) => break,
+                    }
+                }
+            }
+            Err(e) => println!("❌ RUST LỖI: {}", e),
+        }
+    });
+}
+
 // --- PHẦN 3: HÀM RUN CHÍNH ---
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -93,6 +162,7 @@ pub fn run() {
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
+        // .plugin(tauri_plugin_oauth::init())
         .plugin(tauri_plugin_updater::Builder::new().build()) // <--- Thêm dòng này
         .plugin(tauri_plugin_process::init()) // <--- Thêm dòng này để restart app
         // 3. Cấu hình Global Shortcut (Ctrl + Shift + Space)
@@ -125,7 +195,11 @@ pub fn run() {
             Ok(())
         })
         // 5. Đăng ký TẤT CẢ command tại đây
-        .invoke_handler(tauri::generate_handler![get_system_stats, hide_window])
+        .invoke_handler(tauri::generate_handler![
+            get_system_stats,
+            hide_window,
+            start_google_server
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

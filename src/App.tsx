@@ -1,6 +1,7 @@
 // src/App.tsx
 import { useEffect, useState } from "react";
 import { getCurrentWindow, LogicalSize } from "@tauri-apps/api/window";
+import { emit } from "@tauri-apps/api/event";
 import { useAppStore } from "./stores/useAppStore";
 import { Shell } from "./layouts/Shell";
 import { BubbleLayout } from "./layouts/BubbleLayout";
@@ -195,51 +196,37 @@ function App() {
     }
   }, []);
 
-  // useEffect(() => {
-  //   // Logic tạo CSS
-  //   let normalUrl = customCursor.normal;
-  //   if (customCursor.enableAnimation && customCursor.animated) {
-  //     normalUrl = customCursor.animated;
-  //   } else if (!normalUrl && customCursor.animated) {
-  //     normalUrl = customCursor.animated;
-  //   }
+  // --- LOGIC TỰ ĐỘNG ĐÓNG CỬA SỔ AUTH ---
+  useEffect(() => {
+    const handleAuthCallback = async () => {
+      try {
+        // Kiểm tra nếu URL có chứa access_token (Dấu hiệu đăng nhập thành công)
+        const hash = window.location.hash;
+        if (hash && hash.includes("access_token")) {
+          const params = new URLSearchParams(hash.substring(1));
+          const token = params.get("access_token");
+          const expiresIn = params.get("expires_in");
 
-  //   const pointerUrl = customCursor.pointer;
+          if (token) {
+            // 1. Gửi Token về cửa sổ chính (Main Window)
+            // 'google-auth-success' là tên sự kiện chúng ta tự quy định
+            await emit("google-auth-success", { token, expiresIn });
 
-  //   // Tạo thẻ style nếu chưa có
-  //   let styleTag = document.getElementById("global-cursor-style");
-  //   if (!styleTag) {
-  //     styleTag = document.createElement("style");
-  //     styleTag.id = "global-cursor-style";
-  //     document.head.appendChild(styleTag);
-  //   }
+            // 2. Lấy cửa sổ hiện tại (chính là cái Popup)
+            const currentWin = getCurrentWindow();
 
-  //   // Xây dựng nội dung CSS
-  //   let cssContent = "";
+            // 3. Đóng ngay lập tức
+            await currentWin.close();
+          }
+        }
+      } catch (e) {
+        console.error("Lỗi xử lý auth:", e);
+      }
+    };
 
-  //   // 1. Normal Cursor (Áp dụng cho body)
-  //   if (normalUrl) {
-  //     cssContent += `
-  //       body, html {
-  //         cursor: url('${normalUrl}') 0 0, auto !important;
-  //       }
-  //     `;
-  //   } else {
-  //     // Nếu không có custom, dùng cursorStyle cũ hoặc mặc định
-  //     // (Optional: Reset về auto)
-  //   }
-
-  //   // 2. Pointer Cursor (Áp dụng cho các element tương tác)
-  //   if (pointerUrl) {
-  //     cssContent += `
-  //       a, button, [role="button"], .pointer, select, input[type="submit"], input[type="image"], label {
-  //         cursor: url('${pointerUrl}') 0 0, pointer !important;
-  //       }
-  //     `;
-  //   }
-
-  //   styleTag.innerHTML = cssContent;
-  // }, [customCursor]);
+    handleAuthCallback();
+  }, []);
+  // ---------------------------------------
 
   if (standaloneApp) {
     return (

@@ -115,6 +115,9 @@ interface AppState {
 
   autoHideUI: boolean;
   toggleAutoHideUI: () => void;
+
+  appNotifications: Record<string, number>; // { 'calendar': 5, 'mail': 2 ... }
+  setAppNotification: (appId: string, count: number) => void;
 }
 
 export const useAppStore = create<AppState>()(
@@ -220,6 +223,12 @@ export const useAppStore = create<AppState>()(
       // 3. Hàm toggle
       toggleAutoHideUI: () =>
         set((state) => ({ autoHideUI: !state.autoHideUI })),
+
+      appNotifications: {},
+      setAppNotification: (appId, count) =>
+        set((state) => ({
+          appNotifications: { ...state.appNotifications, [appId]: count },
+        })),
     }),
     {
       name: "overdesk-storage",

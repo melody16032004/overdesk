@@ -776,14 +776,12 @@ export const SettingsModule = () => {
       </section>
 
       {/* --- PHẦN BACKGROUND SETTING MỚI --- */}
-      <section className="bg-white dark:bg-slate-800/50 rounded-xl p-4 border border-slate-200 dark:border-white/10">
-        <h3 className="text-sm font-bold text-slate-700 dark:text-slate-200 mb-3 flex items-center gap-2">
-          <Image size={16} /> Dashboard Wallpaper
-        </h3>
+      <section className="animate-in slide-in-from-bottom-2 duration-300 delay-250">
+        <SectionHeader icon={Image} title="background wallpaper" />
 
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-3 bg-white dark:bg-slate-800/50 rounded-xl p-4 border border-slate-200 dark:border-white/10">
           {/* Preview Ảnh */}
-          <div className="relative w-full h-32 rounded-lg overflow-hidden border border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-slate-900 flex items-center justify-center group">
+          <div className="relative w-full h-56 rounded-lg overflow-hidden border border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-slate-900 flex items-center justify-center group">
             {backgroundImage ? (
               <>
                 <img
