@@ -5,7 +5,6 @@ import {
   User,
   Trash2,
   Settings,
-  Copy,
   Key,
   MessageSquare,
   ExternalLink,
@@ -20,75 +19,9 @@ import {
   Edit3,
   PanelLeft,
 } from "lucide-react";
-
-// --- TYPES ---
-interface Message {
-  id: string;
-  role: "user" | "assistant";
-  content: string;
-  timestamp: number;
-  image?: string;
-}
-
-interface ChatSession {
-  id: string;
-  title: string;
-  messages: Message[];
-  timestamp: number;
-}
-
-type Provider = "gemini" | "openai" | "offline";
-
-interface ProviderConfig {
-  name: string;
-  icon: any;
-  color: string;
-  getKeyUrl: string;
-  models: { id: string; name: string }[];
-}
-
-// --- CONFIG ---
-const AI_PROVIDERS: Record<Provider, ProviderConfig> = {
-  gemini: {
-    name: "Google Gemini",
-    icon: Sparkles,
-    color: "text-blue-400",
-    getKeyUrl: "https://aistudio.google.com/app/apikey",
-    models: [
-      { id: "gemini-2.5-flash", name: "Gemini 2.5 Flash" },
-      { id: "gemini-2.5-flash-lite", name: "Gemini 2.5 Flash Lite (Thay thế)" },
-    ],
-  },
-  openai: {
-    name: "OpenAI",
-    icon: Bot,
-    color: "text-emerald-400",
-    getKeyUrl: "https://platform.openai.com/api-keys",
-    models: [
-      { id: "gpt-5.2", name: "GPT-5.2 (Thông minh nhất)" },
-      { id: "gpt-5.2-mini", name: "GPT-5.2 Mini (Nhanh)" },
-      { id: "gpt-5-nano", name: "GPT-5 Nano (Preview)" },
-    ],
-  },
-  offline: {
-    name: "Offline Mode",
-    icon: WifiOff,
-    color: "text-slate-400",
-    getKeyUrl: "",
-    models: [{ id: "mock-v2", name: "Smart Responder" }],
-  },
-};
-
-const MOCK_DATA = {
-  jokes: [
-    "Tại sao lập trình viên không thích thiên nhiên? Vì nó có quá nhiều bugs.",
-    "Vợ tôi bảo tôi phải chọn giữa lập trình và cô ấy... Tôi sẽ nhớ cô ấy lắm.",
-  ],
-  quotes: [
-    "Hành trình vạn dặm bắt đầu từ một bước chân.",
-    "Code là thơ, nhưng bug là đời.",
-  ],
-};
+import { ChatSession, Message, Provider } from "./types/ai_type";
+import { AI_PROVIDERS, MOCK_DATA } from "./constants/ai_const";
+import { renderContent } from "./helper/ai_helper";
 
 export const AIChatModule = () => {
   // --- STATE ---
@@ -439,7 +372,6 @@ export const AIChatModule = () => {
     setIsLoading(false);
   };
 
-  const copyToClipboard = (text: string) => navigator.clipboard.writeText(text);
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -472,51 +404,6 @@ export const AIChatModule = () => {
     };
     rec.start();
     setIsListening(true);
-  };
-  const renderContent = (content: string) => {
-    const parts = content.split(/(```[\s\S]*?```)/g);
-    return parts.map((part, index) => {
-      if (part.startsWith("```") && part.endsWith("```")) {
-        const match = part.match(/```(\w*)?([\s\S]*?)```/);
-        const lang = match ? match[1] : "";
-        const code = match ? match[2].trim() : part.slice(3, -3).trim();
-        return (
-          <div
-            key={index}
-            className="my-3 rounded-lg overflow-hidden border border-slate-700 bg-[#0d1117]"
-          >
-            <div className="flex justify-between items-center px-3 py-1.5 bg-slate-800 border-b border-slate-700">
-              <span className="text-[10px] text-slate-400 font-mono uppercase">
-                {lang || "CODE"}
-              </span>
-              <button
-                onClick={() => copyToClipboard(code)}
-                className="text-slate-400 hover:text-white flex items-center gap-1 text-[10px]"
-              >
-                <Copy size={10} /> Copy
-              </button>
-            </div>
-            <pre className="p-3 overflow-x-auto text-xs font-mono text-emerald-400 leading-relaxed custom-scrollbar">
-              <code>{code}</code>
-            </pre>
-          </div>
-        );
-      } else {
-        return (
-          <div key={index} className="whitespace-pre-wrap font-sans">
-            {part.split(/(\*\*.*?\*\*)/g).map((s, i) =>
-              s.startsWith("**") ? (
-                <strong key={i} className="text-indigo-200">
-                  {s.slice(2, -2)}
-                </strong>
-              ) : (
-                s
-              ),
-            )}
-          </div>
-        );
-      }
-    });
   };
 
   return (

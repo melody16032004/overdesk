@@ -1,39 +1,14 @@
 import { useState, useEffect } from "react";
-// 1. Bỏ import 'open' từ shell, thêm WebviewWindow
-import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 import {
   Newspaper,
-  Globe,
-  Cpu,
-  TrendingUp,
-  Activity,
-  Tv,
-  Award,
-  BookOpen,
   ExternalLink,
   RefreshCw,
   Clock,
   ImageOff,
 } from "lucide-react";
-
-const CATEGORIES = [
-  { id: "tin-moi-nhat", label: "Mới nhất", icon: Clock },
-  { id: "the-gioi", label: "Thế giới", icon: Globe },
-  { id: "kinh-doanh", label: "Kinh doanh", icon: TrendingUp },
-  { id: "so-hoa", label: "Công nghệ", icon: Cpu },
-  { id: "the-thao", label: "Thể thao", icon: Award },
-  { id: "giai-tri", label: "Giải trí", icon: Tv },
-  { id: "suc-khoe", label: "Sức khỏe", icon: Activity },
-  { id: "giao-duc", label: "Giáo dục", icon: BookOpen },
-];
-
-interface Article {
-  title: string;
-  link: string;
-  pubDate: string;
-  thumbnail: string;
-  description: string;
-}
+import { Article } from "./types/news_type";
+import { formatDate, openArticleInWebview } from "./helper/news_helper";
+import { Sidebar } from "./components/Sidebar";
 
 export const NewsModule = () => {
   const [activeCategory, setActiveCategory] = useState("tin-moi-nhat");
@@ -45,7 +20,7 @@ export const NewsModule = () => {
     try {
       const rssUrl = `https://vnexpress.net/rss/${activeCategory}.rss`;
       const apiUrl = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(
-        rssUrl
+        rssUrl,
       )}`;
 
       const res = await fetch(apiUrl);
@@ -91,66 +66,13 @@ export const NewsModule = () => {
     fetchNews();
   }, [activeCategory]);
 
-  // --- 2. HÀM MỞ BẰNG WEBVIEW OVERDESK ---
-  const openArticleInWebview = async (url: string, title: string) => {
-    try {
-      // Tạo label duy nhất để mở được nhiều bài báo cùng lúc
-      const label = `news-${Date.now()}`;
-
-      const webview = new WebviewWindow(label, {
-        url: url,
-        title: title, // Tiêu đề cửa sổ là tiêu đề bài báo
-        width: 1000,
-        height: 800,
-        resizable: true,
-        decorations: true,
-        center: true,
-        focus: true,
-      });
-
-      webview.once("tauri://error", (e) => console.error("Webview error:", e));
-    } catch (error) {
-      console.error("Cannot create window:", error);
-    }
-  };
-
-  const formatDate = (dateString: string) => {
-    try {
-      const date = new Date(dateString);
-      if (isNaN(date.getTime())) return "Mới cập nhật";
-      const now = new Date();
-      const diff = now.getTime() - date.getTime();
-      const hours = Math.floor(diff / (1000 * 60 * 60));
-      if (hours < 1) return "Vừa xong";
-      if (hours < 24) return `${hours} giờ trước`;
-      return new Intl.DateTimeFormat("vi-VN", {
-        day: "2-digit",
-        month: "2-digit",
-      }).format(date);
-    } catch (e) {
-      return "";
-    }
-  };
-
   return (
     <div className="h-full flex flex-col md:flex-row gap-4 p-4 overflow-hidden">
       {/* SIDEBAR CATEGORIES */}
-      <div className="w-full md:w-48 flex flex-row md:flex-col gap-2 overflow-x-auto md:overflow-visible pb-2 md:pb-0 shrink-0">
-        {CATEGORIES.map((cat) => (
-          <button
-            key={cat.id}
-            onClick={() => setActiveCategory(cat.id)}
-            className={`flex items-center gap-3 p-3 rounded-xl transition-all text-left whitespace-nowrap ${
-              activeCategory === cat.id
-                ? "bg-indigo-500 text-white shadow-md"
-                : "bg-slate-100 dark:bg-white/5 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-white/10"
-            }`}
-          >
-            <cat.icon size={18} />
-            <span className="text-xs font-bold">{cat.label}</span>
-          </button>
-        ))}
-      </div>
+      <Sidebar
+        setActiveCategory={setActiveCategory}
+        activeCategory={activeCategory}
+      />
 
       {/* MAIN CONTENT */}
       <div className="flex-1 flex flex-col gap-4 overflow-hidden bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl p-4">
@@ -186,7 +108,7 @@ export const NewsModule = () => {
                   key={idx}
                   // 3. Gọi hàm mở Webview
                   onClick={() => openArticleInWebview(item.link, item.title)}
-                  className="flex gap-4 p-3 rounded-xl hover:bg-slate-50 dark:hover:bg-white/5 border border-transparent hover:border-slate-100 dark:hover:border-white/10 transition-all cursor-pointer group"
+                  className="flex gap-4 p-3 rounded-xl hover:bg-slate-50 dark:hover:bg-white/5 border border-transparent hover:border-slate-100 dark:hover:border-white/10 transition-all pointer group"
                 >
                   <div className="w-24 h-24 rounded-xl overflow-hidden shrink-0 bg-slate-100 dark:bg-black/20 relative flex items-center justify-center">
                     {item.thumbnail ? (

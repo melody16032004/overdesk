@@ -18,19 +18,10 @@ import {
   Eye,
   Scissors,
 } from "lucide-react";
+import { ProcessedImage } from "./types/image_type";
+import { formatBytes } from "./helper/image_helper";
 
 // --- TYPES ---
-interface ProcessedImage {
-  id: string;
-  originalFile: File;
-  previewUrl: string; // URL blob gốc
-  compressedBlob: Blob | null;
-  compressedUrl: string | null; // URL blob nén
-  status: "pending" | "processing" | "done" | "error";
-  originalSize: number;
-  compressedSize: number;
-  errorMsg?: string;
-}
 
 export const ImageCompressorModule = () => {
   // State
@@ -54,20 +45,11 @@ export const ImageCompressorModule = () => {
     const totalOriginal = files.reduce((acc, f) => acc + f.originalSize, 0);
     const totalCompressed = files.reduce(
       (acc, f) => acc + (f.compressedSize || f.originalSize),
-      0
+      0,
     );
     const saved = totalOriginal - totalCompressed;
     return { totalOriginal, totalCompressed, saved };
   }, [files]);
-
-  // --- UTILS ---
-  const formatBytes = (bytes: number) => {
-    if (bytes === 0) return "0 B";
-    const k = 1024;
-    const sizes = ["B", "KB", "MB", "GB"];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + " " + sizes[i];
-  };
 
   // --- HANDLERS: UPLOAD & PASTE ---
   const handleFiles = (fileList: FileList | null) => {
@@ -148,7 +130,7 @@ export const ImageCompressorModule = () => {
           inputFile = new File(
             [finalBlob],
             inputFile.name.replace(/\.heic$/i, ".jpg"),
-            { type: "image/jpeg" }
+            { type: "image/jpeg" },
           );
         }
 
@@ -200,7 +182,7 @@ export const ImageCompressorModule = () => {
         if (f.originalFile.type.includes("heic")) ext = "jpg";
         zip.file(
           `min_${f.originalFile.name.split(".")[0]}.${ext}`,
-          f.compressedBlob
+          f.compressedBlob,
         );
       }
     });
@@ -261,7 +243,7 @@ export const ImageCompressorModule = () => {
             onClick={() => fileInputRef.current?.click()}
             className={`border-2 border-dashed border-slate-700 bg-slate-800/30 rounded-2xl ${
               files.length === 0 ? "flex-1" : "h-32"
-            } flex flex-col items-center justify-center cursor-pointer hover:bg-slate-800/50 hover:border-emerald-500/50 transition-all group mb-4 shrink-0 relative overflow-hidden`}
+            } flex flex-col items-center justify-center pointer hover:bg-slate-800/50 hover:border-emerald-500/50 transition-all group mb-4 shrink-0 relative overflow-hidden`}
           >
             <div className="p-4 bg-slate-800 rounded-full mb-3 group-hover:scale-110 transition-transform shadow-xl relative z-10">
               <UploadCloud size={32} className="text-emerald-400" />
@@ -396,7 +378,7 @@ export const ImageCompressorModule = () => {
               step="0.05"
               value={quality}
               onChange={(e) => setQuality(Number(e.target.value))}
-              className="w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:bg-emerald-500 [&::-webkit-slider-thumb]:rounded-full"
+              className="w-full h-1.5 bg-slate-700 rounded-lg appearance-none pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:bg-emerald-500 [&::-webkit-slider-thumb]:rounded-full"
             />
             <div className="flex justify-between text-[10px] text-slate-600">
               <span>Low Size</span>
@@ -429,7 +411,7 @@ export const ImageCompressorModule = () => {
                       ? "Giữ nguyên"
                       : fmt.split("/")[1].toUpperCase()}
                   </button>
-                )
+                ),
               )}
             </div>
 
@@ -453,7 +435,7 @@ export const ImageCompressorModule = () => {
             {/* Metadata */}
             <div
               onClick={() => setKeepExif(!keepExif)}
-              className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-all ${
+              className={`flex items-center justify-between p-3 rounded-xl border pointer transition-all ${
                 keepExif
                   ? "bg-indigo-500/10 border-indigo-500"
                   : "bg-slate-800 border-slate-700"

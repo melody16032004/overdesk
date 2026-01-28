@@ -1,0 +1,100 @@
+import { Coins, Ruler, Weight, FlaskConical } from "lucide-react";
+
+export const CATEGORIES = [
+  {
+    id: "currency",
+    label: "Currency",
+    icon: Coins,
+    color: "text-amber-400",
+    bg: "bg-amber-400/10 border-amber-400/20",
+  },
+  {
+    id: "length",
+    label: "Length",
+    icon: Ruler,
+    color: "text-cyan-400",
+    bg: "bg-cyan-400/10 border-cyan-400/20",
+  },
+  {
+    id: "weight",
+    label: "Weight",
+    icon: Weight,
+    color: "text-fuchsia-400",
+    bg: "bg-fuchsia-400/10 border-fuchsia-400/20",
+  },
+  {
+    id: "volume",
+    label: "Volume",
+    icon: FlaskConical,
+    color: "text-emerald-400",
+    bg: "bg-emerald-400/10 border-emerald-400/20",
+  },
+];
+
+export const RATES: Record<string, Record<string, number>> = {
+  currency: {
+    USD: 1,
+    VND: 25450,
+    EUR: 0.92,
+    JPY: 155.5,
+    GBP: 0.79,
+    KRW: 1380,
+    BTC: 0.000015,
+  }, // BTC giả lập
+  length: {
+    m: 1,
+    km: 0.001,
+    cm: 100,
+    mm: 1000,
+    inch: 39.3701,
+    ft: 3.28084,
+    mile: 0.000621371,
+    yd: 1.09361,
+  },
+  weight: {
+    g: 1,
+    kg: 0.001,
+    mg: 1000,
+    oz: 0.035274,
+    lb: 0.00220462,
+    ton: 0.000001,
+  },
+  volume: {
+    ml: 1,
+    l: 0.001,
+    "fl oz": 0.033814,
+    gal: 0.000264172,
+    cup: 0.00416667,
+    pint: 0.00211338,
+  },
+};
+
+export const UNIT_NAMES: Record<string, string> = {
+  USD: "US Dollar",
+  VND: "Vietnam Dong",
+  EUR: "Euro",
+  JPY: "Yen",
+  GBP: "Pound",
+  KRW: "Won",
+  BTC: "Bitcoin",
+  m: "Meters",
+  km: "Kilometers",
+  cm: "Centimeters",
+  mm: "Millimeters",
+  inch: "Inches",
+  ft: "Feet",
+  mile: "Miles",
+  yd: "Yards",
+  g: "Grams",
+  kg: "Kilograms",
+  mg: "Milligrams",
+  oz: "Ounces",
+  lb: "Pounds",
+  ton: "Tonnes",
+  ml: "Milliliters",
+  l: "Liters",
+  "fl oz": "Fluid Oz",
+  gal: "Gallons",
+  cup: "Cups",
+  pint: "Pints",
+};
