@@ -3,44 +3,18 @@ import { QRCodeSVG } from "qrcode.react"; // 👈 Import thư viện QR
 import { fetch } from "@tauri-apps/plugin-http";
 import {
   Camera,
-  RefreshCw,
-  Download,
-  AlertCircle,
   Timer,
-  ZoomIn,
-  ChevronLeft,
-  ChevronRight,
-  Smartphone, // 👈 Icon Smartphone
+  Smartphone,
   X,
   Loader2,
   Copy,
   Trash2,
 } from "lucide-react";
-
-const FILTERS = [
-  { id: "none", label: "Normal", css: "none" },
-  { id: "bw", label: "B&W", css: "grayscale(100%) contrast(120%)" },
-  {
-    id: "warm",
-    label: "Vintage",
-    css: "sepia(40%) contrast(110%) brightness(110%)",
-  },
-  {
-    id: "cool",
-    label: "Cyber",
-    css: "hue-rotate(180deg) saturate(150%) contrast(120%)",
-  },
-  {
-    id: "soft",
-    label: "Soft",
-    css: "brightness(110%) contrast(90%) saturate(110%) blur(0.5px)",
-  },
-  {
-    id: "dark",
-    label: "Noir",
-    css: "grayscale(100%) brightness(80%) contrast(150%)",
-  },
-];
+import { CLOUD_NAME, FILTERS, UPLOAD_PRESET } from "./constants/camera_const";
+import { formatTime } from "./helpers/camera_helper";
+import { ErrorState } from "./components/ErrorState";
+import { Control } from "./components/Control";
+import { Viewport } from "./components/Viewport";
 
 export const CameraModule = () => {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -74,8 +48,6 @@ export const CameraModule = () => {
   const [isDeleting, setIsDeleting] = useState(false);
 
   // 👇 ĐIỀN THÔNG TIN CỦA BẠN VÀO ĐÂY
-  const CLOUD_NAME = "dspycnr0t";
-  const UPLOAD_PRESET = "overdesk";
 
   // --- 1. QUẢN LÝ CAMERA ---
   const stopCamera = () => {
@@ -172,7 +144,7 @@ export const CameraModule = () => {
             0,
             0,
             canvas.width,
-            canvas.height
+            canvas.height,
           );
         } else {
           ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
@@ -222,14 +194,6 @@ export const CameraModule = () => {
     return () => clearInterval(interval);
   }, [isRecording]);
 
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins.toString().padStart(2, "0")}:${secs
-      .toString()
-      .padStart(2, "0")}`;
-  };
-
   const downloadMedia = () => {
     const link = document.createElement("a");
     const date = Date.now();
@@ -258,7 +222,7 @@ export const CameraModule = () => {
         {
           method: "POST",
           body: formData,
-        }
+        },
       );
 
       const result = await response.json();
@@ -337,7 +301,7 @@ export const CameraModule = () => {
         setDeleteToken(result.delete_token);
       } else {
         console.warn(
-          "No delete_token returned. Did you enable it in Cloudinary Settings?"
+          "No delete_token returned. Did you enable it in Cloudinary Settings?",
         );
       }
 
@@ -388,17 +352,7 @@ export const CameraModule = () => {
       </div>
 
       {error ? (
-        <div className="flex-1 flex flex-col items-center justify-center text-red-500 bg-red-50 dark:bg-red-500/10 rounded-2xl border border-red-100 dark:border-red-500/20 p-6 text-center">
-          <AlertCircle size={40} className="mb-2 opacity-50" />
-          <span className="font-bold mb-2">Error</span>
-          <span className="text-xs mb-4">{error}</span>
-          <button
-            onClick={startCamera}
-            className="px-4 py-2 bg-red-500 text-white rounded-lg text-xs font-bold"
-          >
-            Retry
-          </button>
-        </div>
+        <ErrorState error={error} startCamera={startCamera} />
       ) : (
         <div className="flex-1 bg-black rounded-3xl overflow-hidden relative flex flex-col items-center justify-center shadow-2xl border-4 border-slate-100 dark:border-white/10 group">
           {/* COUNTDOWN & INDICATOR */}
@@ -489,216 +443,34 @@ export const CameraModule = () => {
           )}
 
           {/* VIEWPORT */}
-          <div
-            className={`w-full relative flex items-center justify-center bg-black ${
-              capturedImage || recordedVideoUrl
-                ? "h-[calc(100%-90px)] mt-4"
-                : "h-full"
-            }`}
-          >
-            {capturedImage ? (
-              <img
-                src={capturedImage}
-                alt="Result"
-                className="w-full h-full object-contain"
-              />
-            ) : recordedVideoUrl ? (
-              <video
-                src={recordedVideoUrl}
-                controls
-                className="w-full h-full object-contain"
-                controlsList="nodownload nofullscreen noremoteplayback"
-              />
-            ) : (
-              <>
-                <video
-                  ref={videoRef}
-                  autoPlay
-                  playsInline
-                  muted
-                  onLoadedMetadata={() => videoRef.current?.play()}
-                  className="w-full h-full object-cover scale-x-[-1]"
-                  style={{
-                    filter:
-                      mode === "photo" ? FILTERS[activeFilter].css : "none",
-                    transform: `scaleX(-1) scale(${zoom})`,
-                  }}
-                />
-                <div className="absolute inset-0 pointer-events-none opacity-20">
-                  <div className="w-full h-1/3 border-b border-white"></div>
-                  <div className="w-full h-1/3 border-b border-white top-1/3 absolute"></div>
-                  <div className="h-full w-1/3 border-r border-white absolute top-0 left-0"></div>
-                  <div className="h-full w-1/3 border-r border-white absolute top-0 right-1/3"></div>
-                </div>
-              </>
-            )}
-            <canvas ref={canvasRef} className="hidden" />
-          </div>
+          <Viewport
+            capturedImage={capturedImage}
+            recordedVideoUrl={recordedVideoUrl}
+            videoRef={videoRef}
+            mode={mode}
+            zoom={zoom}
+            activeFilter={activeFilter}
+            canvasRef={canvasRef}
+          />
 
           {/* CONTROLS */}
-          <div
-            className={`absolute bottom-0 left-0 right-0 ${
-              capturedImage || recordedVideoUrl ? "h-[90px]" : "h-[200px]"
-            } flex flex-col items-center justify-center z-20 px-6 bg-gradient-to-t from-black/80 to-transparent`}
-          >
-            {capturedImage || recordedVideoUrl ? (
-              <div className="flex gap-8 animate-in slide-in-from-bottom-4 mb-4">
-                <button
-                  onClick={retake}
-                  className="flex flex-col items-center gap-1 group"
-                >
-                  <div className="p-3 bg-white/20 backdrop-blur-md rounded-full text-white group-hover:bg-red-500 transition-all">
-                    <RefreshCw size={20} />
-                  </div>
-                  <span className="text-[9px] font-bold text-white/80">
-                    Discard
-                  </span>
-                </button>
-                <button
-                  onClick={handleShareToMobile}
-                  className="flex flex-col items-center gap-1 group"
-                >
-                  <div className="p-3 bg-white/20 backdrop-blur-md rounded-full text-white group-hover:bg-indigo-500 transition-all">
-                    <Smartphone size={20} />
-                  </div>
-                  <span className="text-[9px] font-bold text-white/80">
-                    To Phone
-                  </span>
-                </button>
-                <button
-                  onClick={downloadMedia}
-                  className="flex flex-col items-center gap-1 group"
-                >
-                  <div className="p-3 bg-white text-indigo-600 rounded-full hover:scale-110 transition-transform shadow-lg shadow-indigo-500/50">
-                    <Download size={20} />
-                  </div>
-                  <span className="text-[9px] font-bold text-white/80">
-                    Save
-                  </span>
-                </button>
-              </div>
-            ) : (
-              <div className="w-full flex flex-col gap-3 pb-4">
-                {!isRecording && (
-                  <>
-                    <div className="flex items-center justify-center gap-3 text-white/80">
-                      <ZoomIn size={14} />
-                      <input
-                        type="range"
-                        min="1"
-                        max="3"
-                        step="0.1"
-                        value={zoom}
-                        onChange={(e) => setZoom(parseFloat(e.target.value))}
-                        className="w-48 h-1 bg-white/30 rounded-lg appearance-none cursor-pointer accent-white"
-                      />
-                    </div>
-                    {mode === "photo" && (
-                      <div className="flex items-center justify-between w-full bg-black/40 backdrop-blur-md rounded-2xl p-2 gap-2">
-                        <button
-                          onClick={() =>
-                            setActiveFilter(
-                              (prev) =>
-                                (prev - 1 + FILTERS.length) % FILTERS.length
-                            )
-                          }
-                          className="p-1 text-white/50 hover:text-white"
-                        >
-                          <ChevronLeft size={20} />
-                        </button>
-                        <div className="flex-1 flex justify-center gap-2 overflow-hidden">
-                          {FILTERS.map((f, idx) => (
-                            <button
-                              key={f.id}
-                              onClick={() => setActiveFilter(idx)}
-                              className={`w-8 h-8 rounded-full border-2 transition-all shrink-0 ${
-                                activeFilter === idx
-                                  ? "border-indigo-500 scale-110"
-                                  : "border-transparent opacity-50"
-                              }`}
-                              style={{
-                                background: idx === 0 ? "#fff" : "gray",
-                                filter: f.css !== "none" ? f.css : undefined,
-                              }}
-                            />
-                          ))}
-                        </div>
-                        <button
-                          onClick={() =>
-                            setActiveFilter(
-                              (prev) => (prev + 1) % FILTERS.length
-                            )
-                          }
-                          className="p-1 text-white/50 hover:text-white"
-                        >
-                          <ChevronRight size={20} />
-                        </button>
-                      </div>
-                    )}
-                  </>
-                )}
-                <div className="flex items-center justify-center gap-8 mt-1">
-                  <button
-                    onClick={
-                      mode === "photo"
-                        ? triggerPhoto
-                        : isRecording
-                        ? stopRecording
-                        : startRecording
-                    }
-                    className={`w-16 h-16 rounded-full border-4 border-white/80 flex items-center justify-center transition-all shadow-lg backdrop-blur-sm ${
-                      isRecording
-                        ? "bg-red-500/20"
-                        : "bg-white/10 hover:scale-105 active:scale-95"
-                    }`}
-                  >
-                    <div
-                      className={`transition-all duration-300 ${
-                        mode === "photo"
-                          ? "w-10 h-10 bg-white rounded-full"
-                          : ""
-                      } ${
-                        mode === "video" && !isRecording
-                          ? "w-10 h-10 bg-red-500 rounded-full"
-                          : ""
-                      } ${
-                        mode === "video" && isRecording
-                          ? "w-6 h-6 bg-red-500 rounded-sm"
-                          : ""
-                      }`}
-                    />
-                  </button>
-                </div>
-                {!isRecording && (
-                  <div className="flex justify-center -mt-1">
-                    <div className="bg-black/50 backdrop-blur-md rounded-full p-1 flex relative scale-75 origin-top">
-                      <div
-                        className={`absolute top-1 bottom-1 w-[60px] bg-white/20 rounded-full transition-all duration-300 ${
-                          mode === "photo" ? "left-1" : "left-[65px]"
-                        }`}
-                      ></div>
-                      <button
-                        onClick={() => setMode("photo")}
-                        className={`w-[60px] text-[10px] font-bold py-1.5 rounded-full z-10 transition-colors ${
-                          mode === "photo" ? "text-white" : "text-white/50"
-                        }`}
-                      >
-                        PHOTO
-                      </button>
-                      <button
-                        onClick={() => setMode("video")}
-                        className={`w-[60px] text-[10px] font-bold py-1.5 rounded-full z-10 transition-colors ${
-                          mode === "video" ? "text-white" : "text-white/50"
-                        }`}
-                      >
-                        VIDEO
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
+          <Control
+            capturedImage={capturedImage}
+            recordedVideoUrl={recordedVideoUrl}
+            retake={retake}
+            handleShareToMobile={handleShareToMobile}
+            downloadMedia={downloadMedia}
+            isRecording={isRecording}
+            zoom={zoom}
+            setZoom={setZoom}
+            mode={mode}
+            setMode={setMode}
+            setActiveFilter={setActiveFilter}
+            activeFilter={activeFilter}
+            triggerPhoto={triggerPhoto}
+            stopRecording={stopRecording}
+            startRecording={startRecording}
+          />
         </div>
       )}
     </div>

@@ -2,306 +2,20 @@ import React, { useState, useEffect, useRef, useMemo } from "react";
 import Peer, { DataConnection } from "peerjs";
 import {
   Send,
-  AlertTriangle,
-  File as FileIcon,
-  Download,
   Paperclip,
   Settings,
   CheckCheck,
-  Loader2,
   User,
   Palette,
   Sparkles,
   X,
   Search,
-  Wifi,
-  WifiOff,
-  RefreshCw,
-  Copy,
-  Check,
 } from "lucide-react";
-
-// ... (Giữ nguyên các CONST, TYPES, UTILS cũ: CHUNK_SIZE, MsgType, AppSettings, THEMES, isValidUrl...)
-// Để ngắn gọn, tôi sẽ focus vào phần sửa lỗi Copy
-
-const CHUNK_SIZE = 16 * 1024;
-
-// --- TYPES ---
-type MsgType = {
-  id: number;
-  from: "me" | "other";
-  type: "text" | "file";
-  content: string;
-  senderName?: string;
-  fileData?: Blob;
-};
-
-type AppSettings = {
-  username: string;
-  themeColor: string;
-  enableStars: boolean;
-};
-
-const THEMES: Record<string, { bg: string; text: string; border: string }> = {
-  blue: { bg: "bg-blue-600", text: "text-blue-500", border: "border-blue-500" },
-  purple: {
-    bg: "bg-purple-600",
-    text: "text-purple-500",
-    border: "border-purple-500",
-  },
-  orange: {
-    bg: "bg-orange-600",
-    text: "text-orange-500",
-    border: "border-orange-500",
-  },
-  green: {
-    bg: "bg-emerald-600",
-    text: "text-emerald-500",
-    border: "border-emerald-500",
-  },
-};
-
-const isValidUrl = (string: string) => {
-  try {
-    return Boolean(new URL(string));
-  } catch (e) {
-    return false;
-  }
-};
-const isImageUrl = (url: string) =>
-  /\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i.test(url) ||
-  url.includes("/image/upload/");
-const formatBytes = (bytes: number) => {
-  if (!+bytes) return "0 B";
-  const k = 1024;
-  const sizes = ["B", "KB", "MB", "GB"];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`;
-};
-const escapeRegExp = (string: string) =>
-  string.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-
-const HighlightText = ({
-  text,
-  highlight,
-}: {
-  text: string;
-  highlight: string;
-}) => {
-  if (!highlight.trim()) return <span>{text}</span>;
-  const escapedHighlight = escapeRegExp(highlight);
-  try {
-    const regex = new RegExp(`(${escapedHighlight})`, "gi");
-    const parts = text.split(regex);
-    return (
-      <span>
-        {parts.map((part, i) =>
-          part.toLowerCase() === highlight.toLowerCase() ? (
-            <span
-              key={i}
-              className="bg-yellow-500/80 text-white rounded px-0.5 font-medium"
-            >
-              {part}
-            </span>
-          ) : (
-            part
-          ),
-        )}
-      </span>
-    );
-  } catch (e) {
-    return <span>{text}</span>;
-  }
-};
-
-// --- [ĐÃ SỬA] COMPONENT MESSAGE BUBBLE ---
-const MessageBubble = ({
-  msg,
-  searchTerm,
-  onDownload,
-}: {
-  msg: MsgType;
-  searchTerm: string;
-  onDownload: (blob: Blob, name: string) => void;
-}) => {
-  const [copied, setCopied] = useState(false);
-
-  // Hàm Copy mạnh mẽ (hoạt động cả HTTP và HTTPS)
-  const handleCopy = async (e: React.MouseEvent) => {
-    e.stopPropagation();
-    const textToCopy = msg.content;
-
-    try {
-      // Cách 1: API Chuẩn (HTTPS)
-      if (navigator.clipboard && window.isSecureContext) {
-        await navigator.clipboard.writeText(textToCopy);
-      } else {
-        // Cách 2: Fallback (HTTP / Mobile cũ)
-        // Tạo một thẻ textarea ảo để copy
-        const textArea = document.createElement("textarea");
-        textArea.value = textToCopy;
-
-        // Đảm bảo nó không hiển thị gây vướng nhưng vẫn thuộc DOM
-        textArea.style.position = "fixed";
-        textArea.style.left = "-9999px";
-        textArea.style.top = "0";
-        document.body.appendChild(textArea);
-
-        textArea.focus();
-        textArea.select();
-
-        // Thực hiện lệnh copy
-        const successful = document.execCommand("copy");
-        document.body.removeChild(textArea);
-
-        if (!successful) throw new Error("Fallback copy failed");
-      }
-
-      // Hiệu ứng thành công
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch (err) {
-      console.error("Copy failed", err);
-      alert("Không thể sao chép tin nhắn này."); // Báo lỗi cho người dùng biết
-    }
-  };
-
-  // 1. FILE RENDER
-  if (msg.type === "file" && msg.fileData) {
-    const isImage = msg.fileData.type.startsWith("image/");
-
-    if (isImage) {
-      const imgUrl = URL.createObjectURL(msg.fileData);
-      return (
-        <div
-          className="flex flex-col gap-1 group cursor-pointer"
-          onClick={() => onDownload(msg.fileData!, msg.content)}
-        >
-          <div className="relative rounded-lg overflow-hidden border border-white/10 bg-black/20">
-            <img
-              src={imgUrl}
-              alt="preview"
-              className="max-h-60 w-full object-cover"
-            />
-            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-              <div className="bg-black/60 p-2 rounded-full backdrop-blur-md">
-                <Download size={24} className="text-white" />
-              </div>
-            </div>
-          </div>
-          <div className="flex items-center justify-between px-1 mt-1">
-            <span className="text-[10px] opacity-70 truncate max-w-[150px]">
-              <HighlightText text={msg.content} highlight={searchTerm} />
-            </span>
-            <span className="text-[10px] opacity-60 font-medium">
-              {formatBytes(msg.fileData.size)}
-            </span>
-          </div>
-        </div>
-      );
-    }
-    return (
-      <div
-        className="flex items-center gap-3 min-w-[200px] cursor-pointer group"
-        onClick={() => onDownload(msg.fileData!, msg.content)}
-      >
-        <div className="bg-white/20 p-3 rounded-full flex items-center justify-center shrink-0 group-active:scale-95 transition-transform">
-          <FileIcon size={24} className="text-white" />
-        </div>
-        <div className="flex-1 overflow-hidden">
-          <div className="truncate text-sm font-bold leading-tight mb-0.5">
-            <HighlightText text={msg.content} highlight={searchTerm} />
-          </div>
-          <div className="text-[11px] opacity-80 flex items-center gap-1">
-            {formatBytes(msg.fileData.size)} • File
-          </div>
-        </div>
-        <div className="p-2 bg-white/10 rounded-full hover:bg-white/20 transition-colors shrink-0">
-          <Download size={20} className="text-white" />
-        </div>
-      </div>
-    );
-  }
-
-  // 2. TEXT RENDER
-  const isLink = msg.type === "text" && isValidUrl(msg.content);
-  const isImgLink = isLink && isImageUrl(msg.content);
-
-  return (
-    <div className="flex flex-col relative">
-      {isImgLink ? (
-        <div className="rounded-lg overflow-hidden border border-white/10 mb-1 relative group">
-          <img
-            src={msg.content}
-            alt="sent"
-            className="max-h-64 w-full object-cover"
-          />
-          <a
-            href={msg.content}
-            target="_blank"
-            rel="noreferrer"
-            className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity"
-          >
-            <div className="bg-black/50 p-2 rounded-full text-white backdrop-blur-sm">
-              <Download size={24} />
-            </div>
-          </a>
-        </div>
-      ) : isLink ? (
-        <div className="bg-black/20 p-3 rounded-xl flex items-center gap-3 mb-1">
-          <div className="p-2 bg-white/10 rounded-lg shrink-0 text-white">
-            <Paperclip size={18} />
-          </div>
-          <div className="overflow-hidden">
-            <a
-              href={msg.content}
-              target="_blank"
-              rel="noreferrer"
-              className="hover:underline text-sm truncate block font-medium text-white"
-            >
-              <HighlightText text={msg.content} highlight={searchTerm} />
-            </a>
-            <span className="text-[10px] text-slate-400">Liên kết ngoài</span>
-          </div>
-        </div>
-      ) : (
-        <span className="text-[16px] leading-relaxed break-words">
-          <HighlightText text={msg.content} highlight={searchTerm} />
-        </span>
-      )}
-
-      {/* FOOTER: Time & Copy Button */}
-      <div
-        className={`text-[10px] mt-1 flex items-center justify-end gap-3 select-none ${msg.from === "me" ? "text-white/70" : "text-slate-500"}`}
-      >
-        {/* Nút Copy - Đã tăng kích thước vùng bấm (p-2) để dễ bấm trên điện thoại */}
-        <button
-          onClick={handleCopy}
-          className="group flex items-center justify-center opacity-60 hover:opacity-100 transition-opacity p-1.5 -m-1.5"
-          title="Sao chép"
-        >
-          {copied ? (
-            <Check
-              size={14}
-              className={msg.from === "me" ? "text-white" : "text-green-500"}
-              strokeWidth={3}
-            />
-          ) : (
-            <Copy size={12} />
-          )}
-        </button>
-
-        <span className="flex items-center gap-1">
-          {new Date(msg.id).toLocaleTimeString([], {
-            hour: "2-digit",
-            minute: "2-digit",
-          })}
-          {msg.from === "me" && <CheckCheck size={14} />}
-        </span>
-      </div>
-    </div>
-  );
-};
+import { MessageBubble } from "./components/MessageBubble";
+import { CHUNK_SIZE, THEMES } from "./constants/device_hub_const";
+import { MsgType, AppSettings } from "./types/device_hub_type";
+import { Disconnected } from "./components/Disconnected";
+import { downloadFile } from "./helpers/device_hub_helper";
 
 // --- (PHẦN CÒN LẠI CỦA COMPONENT MobileConnect GIỮ NGUYÊN) ---
 export const MobileConnect = () => {
@@ -511,14 +225,6 @@ export const MobileConnect = () => {
     setProgress(0);
   };
 
-  const downloadBlob = (blob: Blob, name: string) => {
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = name;
-    a.click();
-  };
-
   const matchCount = useMemo(() => {
     if (!searchTerm.trim()) return 0;
     return history.filter((msg) =>
@@ -531,63 +237,14 @@ export const MobileConnect = () => {
   const themeBorder = THEMES[settings.themeColor].border;
 
   if (status !== "connected") {
-    return (
-      <div className="h-[100dvh] w-full bg-[#09101a] text-slate-100 flex flex-col items-center justify-center relative overflow-hidden font-sans">
-        <div className="absolute inset-0 z-0 pointer-events-none">{stars}</div>
-        <div className="absolute inset-0 flex items-center justify-center z-0 opacity-20">
-          <div
-            className={`w-[300px] h-[300px] rounded-full border-4 ${themeBorder} animate-[ping_3s_linear_infinite]`}
-          ></div>
-          <div
-            className={`absolute w-[200px] h-[200px] rounded-full border-4 ${themeBorder} animate-[ping_3s_linear_infinite_1s]`}
-          ></div>
-        </div>
-        <div className="z-10 flex flex-col items-center gap-6 p-8 text-center max-w-sm">
-          <div
-            className={`w-24 h-24 rounded-full bg-black/30 backdrop-blur-md border border-white/10 flex items-center justify-center shadow-2xl relative`}
-          >
-            {status === "connecting" ? (
-              <>
-                <Loader2 className={`w-10 h-10 ${themeText} animate-spin`} />
-                <div
-                  className={`absolute -bottom-1 -right-1 w-8 h-8 bg-[#1e293b] rounded-full flex items-center justify-center border border-white/10`}
-                >
-                  <Wifi className="w-4 h-4 text-white" />
-                </div>
-              </>
-            ) : (
-              <>
-                <WifiOff className="w-10 h-10 text-red-500" />
-                <div className="absolute -bottom-1 -right-1 w-8 h-8 bg-[#1e293b] rounded-full flex items-center justify-center border border-white/10">
-                  <AlertTriangle className="w-4 h-4 text-red-500" />
-                </div>
-              </>
-            )}
-          </div>
-          <div className="space-y-2">
-            <h2 className="text-2xl font-bold tracking-tight">
-              {status === "connecting" ? "Đang kết nối..." : "Mất kết nối"}
-            </h2>
-            <p className="text-sm text-slate-400">
-              {status === "connecting"
-                ? "Đang tìm kiếm thiết bị chủ. Vui lòng đợi."
-                : errorMsg || "Không thể liên lạc với máy chủ."}
-            </p>
-          </div>
-          {status === "error" && (
-            <button
-              onClick={() => window.location.reload()}
-              className={`flex items-center gap-2 px-6 py-3 rounded-xl font-medium text-white shadow-lg active:scale-95 transition-all ${themeClass}`}
-            >
-              <RefreshCw size={18} /> Thử lại ngay
-            </button>
-          )}
-        </div>
-        <div className="absolute bottom-8 text-[10px] text-slate-600 font-mono">
-          OVERDESK P2P • SECURE LINK
-        </div>
-      </div>
-    );
+    <Disconnected
+      status={status}
+      stars={stars}
+      themeBorder={themeBorder}
+      themeText={themeText}
+      errorMsg={errorMsg}
+      themeClass={themeClass}
+    />;
   }
 
   return (
@@ -690,7 +347,7 @@ export const MobileConnect = () => {
                 <MessageBubble
                   msg={msg}
                   searchTerm={searchTerm}
-                  onDownload={downloadBlob}
+                  onDownload={downloadFile}
                 />
               </div>
             </div>
@@ -702,7 +359,7 @@ export const MobileConnect = () => {
           <div className="shrink-0 p-2 z-20 bg-gradient-to-t from-[#09101a] via-[#09101a]/95 to-transparent pt-4 pb-safe">
             <div className="bg-[#1e293b]/90 backdrop-blur-xl border border-white/10 rounded-full p-1.5 flex items-end gap-2 shadow-2xl mx-auto max-w-3xl">
               <label
-                className={`p-3 hover:text-white cursor-pointer transition-colors active:scale-95 ${text.trim() ? "text-slate-400" : themeText}`}
+                className={`p-3 hover:text-white pointer transition-colors active:scale-95 ${text.trim() ? "text-slate-400" : themeText}`}
               >
                 {progress > 0 ? (
                   <span className="text-[10px] font-bold">{progress}%</span>
@@ -796,7 +453,7 @@ export const MobileConnect = () => {
                   </div>
                   <span className="text-sm font-medium">Hiệu ứng sao bay</span>
                 </div>
-                <label className="relative inline-flex items-center cursor-pointer">
+                <label className="relative inline-flex items-center pointer">
                   <input
                     type="checkbox"
                     className="sr-only peer"

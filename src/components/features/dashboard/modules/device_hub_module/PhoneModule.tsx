@@ -15,18 +15,9 @@ import {
   Trash2,
   History, // Thêm icon History
 } from "lucide-react";
-
-// --- CẤU HÌNH CLOUDINARY ---
-const CLOUD_NAME = "dspycnr0t";
-const UPLOAD_PRESET = "overdesk";
-
-type MsgType = {
-  id: number;
-  from: "me" | "phone";
-  type: "text" | "file";
-  content: string;
-  fileData?: Blob;
-};
+import { MsgType } from "./types/device_hub_type";
+import { CLOUD_NAME, UPLOAD_PRESET } from "./constants/device_hub_const";
+import { downloadFile } from "./helpers/device_hub_helper";
 
 export const PhoneModule = () => {
   const [isServerRunning, setIsServerRunning] = useState(false);
@@ -250,13 +241,6 @@ export const PhoneModule = () => {
 
   const port = "1420"; /*window.location.pport*/
   const connectUrl = `http://${lanIp}:${port}/connect?hostId=${myId}`;
-  const downloadFile = (blob: Blob, name: string) => {
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = name;
-    a.click();
-  };
 
   return (
     <div className="w-full h-full flex flex-col font-sans text-slate-200 select-none relative animate-in fade-in zoom-in duration-300">
@@ -367,6 +351,7 @@ export const PhoneModule = () => {
                     </span>
                   </div>
                 )}
+
                 <div className="flex-1"></div>
 
                 <button
@@ -447,7 +432,7 @@ export const PhoneModule = () => {
               </div>
               <div className="p-4 border-t border-white/5 bg-zinc-950/50 flex gap-3 items-center">
                 <label
-                  className={`p-3 bg-zinc-800 hover:bg-zinc-700 rounded-xl cursor-pointer transition-colors border border-white/5 ${
+                  className={`p-3 bg-zinc-800 hover:bg-zinc-700 rounded-xl pointer transition-colors border border-white/5 ${
                     !connection ? "opacity-50 pointer-events-none" : ""
                   }`}
                 >
