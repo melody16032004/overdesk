@@ -9,6 +9,9 @@ import {
   Repeat,
   FileText,
   BrushCleaning,
+  CreditCard,
+  Banknote,
+  PiggyBank,
 } from "lucide-react";
 import { useToastStore } from "../../../../../stores/useToastStore";
 import { DEFAULT_WALLETS, CATEGORIES } from "./constants/budget_const";
@@ -27,6 +30,24 @@ import { Overview } from "./components/Overview";
 import { AddView } from "./components/AddView";
 import { StatementView } from "./components/StatementView";
 import { TransactionView } from "./components/TransactionView";
+import income from "/sounds/budget/income.mp3";
+import outcome from "/sounds/budget/outcome.mp3";
+import drop from "/sounds/budget/drop.mp3";
+import trans from "/sounds/budget/transfer.mp3";
+import write from "/sounds/budget/write.mp3";
+import { formatMoney, playSoundEffect } from "./helpers/budget_help";
+import { motion, Variants, AnimatePresence } from "framer-motion";
+
+const containerVariants: Variants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.05, // Tăng tốc độ xuất hiện
+      delayChildren: 0.1,
+    },
+  },
+};
 
 export const BudgetModule = () => {
   const { showToast } = useToastStore();
@@ -109,6 +130,8 @@ export const BudgetModule = () => {
   );
   const [category, setCategory] = useState("food");
   const [note, setNote] = useState("");
+  const [editingTransaction, setEditingTransaction] =
+    useState<Transaction | null>(null);
 
   // Form Wallet (Create/Edit)
   const [editingWallet, setEditingWallet] = useState<WalletItem | null>(null);
@@ -170,7 +193,18 @@ export const BudgetModule = () => {
       const expense = walletTrans
         .filter((t) => t.type === "expense")
         .reduce((sum, t) => sum + t.amount, 0);
-      const current = w.initialBalance + income - expense;
+      const transferIn = walletTrans.filter(
+        (t) => t.type === "transfer-in" && t.walletId === w.id,
+      );
+      const transferOut = walletTrans.filter(
+        (t) => t.type === "transfer-out" && t.walletId === w.id,
+      );
+      const current =
+        w.initialBalance +
+        income -
+        expense +
+        transferIn.reduce((sum, t) => sum + t.amount, 0) -
+        transferOut.reduce((sum, t) => sum + t.amount, 0);
 
       wBalances[w.id] = current; // Cập nhật cho map balances
 
@@ -311,6 +345,7 @@ export const BudgetModule = () => {
           : w,
       );
       setWallets(updatedWallets);
+      playSoundEffect(write);
       showToast("Đã cập nhật ví", "success");
     } else {
       const newWallet: WalletItem = {
@@ -326,6 +361,7 @@ export const BudgetModule = () => {
               : "text-purple-400",
       };
       setWallets([...wallets, newWallet]);
+      playSoundEffect(income);
       showToast("Đã tạo ví mới", "success");
     }
     setEditingWallet(null);
@@ -351,6 +387,7 @@ export const BudgetModule = () => {
       "Xóa ví?",
       "Hành động này sẽ xóa vĩnh viễn ví và tất cả giao dịch liên quan. Bạn có chắc chắn không?",
       () => {
+        playSoundEffect(drop);
         setWallets(wallets.filter((w) => w.id !== id));
         setTransactions(transactions.filter((t) => t.walletId !== id));
         showToast("Đã xóa ví", "success");
@@ -367,28 +404,82 @@ export const BudgetModule = () => {
 
   // Transaction Actions
   const handleAddTransaction = () => {
-    if (!amount || parseFloat(amount) <= 0) return;
+    if (!amount || parseFloat(amount) <= 0) {
+      showToast("Vui lòng nhập số tiền hợp lệ", "error");
+      return;
+    }
     if (!wallets.find((w) => w.id === selectedWalletId)) {
       showToast("Vui lòng chọn ví hợp lệ", "error");
       return;
     }
 
-    const newTrans: Transaction = {
-      id: Date.now(),
-      type,
-      walletId: selectedWalletId,
-      amount: parseFloat(amount),
-      category: type === "income" ? "salary" : category,
-      note,
-      date: new Date().toLocaleDateString("vi-VN"),
-      rawDate: Date.now(),
-    };
-    setTransactions([newTrans, ...transactions]);
+    const amountNum = parseFloat(amount);
+
+    const sourceBalance = walletBalances[selectedWalletId] || 0;
+    if (sourceBalance < amountNum && type === "expense") {
+      confirmAction(
+        "Số dư không đủ",
+        "Ví nguồn không đủ tiền. Ví sẽ bị âm sau khi chuyển. Bạn có muốn tiếp tục?",
+        () => executeTransaction(),
+      );
+    } else {
+      executeTransaction();
+    }
+  };
+  const executeTransaction = () => {
+    const amountNum = parseFloat(amount);
+
+    if (editingTransaction) {
+      // --- LOGIC CẬP NHẬT ---
+      const updatedTransactions = transactions.map((t) => {
+        if (t.id === editingTransaction.id) {
+          return {
+            ...t,
+            amount: amountNum,
+            type: type,
+            walletId: selectedWalletId,
+            category: type === "income" ? "salary" : category,
+            note: note,
+            // Giữ nguyên ngày tháng cũ hoặc cập nhật mới tùy bạn (ở đây giữ nguyên)
+          };
+        }
+        return t;
+      });
+
+      setTransactions(updatedTransactions);
+      playSoundEffect(write); // Âm thanh ghi chép
+      showToast("Đã cập nhật giao dịch!", "success");
+      setEditingTransaction(null); // Reset trạng thái edit
+    } else {
+      // --- LOGIC THÊM MỚI (Cũ) ---
+      const newTrans: Transaction = {
+        id: Date.now(),
+        type,
+        walletId: selectedWalletId,
+        amount: amountNum,
+        category: type === "income" ? "salary" : category,
+        note,
+        date: new Date().toLocaleDateString("vi-VN"),
+        rawDate: Date.now(),
+      };
+      setTransactions([newTrans, ...transactions]);
+      playSoundEffect(type === "income" ? income : outcome);
+      showToast("Giao dịch đã được lưu!", "success");
+    }
+
+    // Reset Form & View
     setAmount("");
     setNote("");
     setView("overview");
-    showToast("Giao dịch đã được lưu!", "success");
   };
+  // const handleSwitchView = (newView: any) => {
+  //   if (newView !== "add") {
+  //     setEditingTransaction(null);
+  //     setAmount("");
+  //     setNote("");
+  //   }
+  //   setView(newView);
+  // };
 
   const handleDeleteTransaction = (id: number) => {
     setTransactions(transactions.filter((t) => t.id !== id));
@@ -400,6 +491,7 @@ export const BudgetModule = () => {
       "Reset toàn bộ dữ liệu?",
       "Tất cả ví, giao dịch và cài đặt sẽ bị xóa sạch. Không thể khôi phục được.",
       () => {
+        playSoundEffect(drop);
         setTransactions([]);
         setWallets(DEFAULT_WALLETS);
         showToast("Đã reset về mặc định", "info");
@@ -431,9 +523,70 @@ export const BudgetModule = () => {
       rawDate: Date.now(),
     };
     setTransactions([adjustmentTrans, ...transactions]);
+    playSoundEffect(write);
     setShowAdjustModal(false);
     setActualMoney("");
     showToast("Cân bằng số dư thành công!", "success");
+  };
+
+  const handleEditTransactionBtn = (t: Transaction) => {
+    setEditingTransaction(t); // 1. Lưu giao dịch đang sửa
+
+    // --- LOGIC SỬA CHUYỂN KHOẢN ---
+    if (t.type === "transfer-in" || t.type === "transfer-out") {
+      // Tìm giao dịch đối ứng (Partner)
+      const partner = transactions.find(
+        (p) =>
+          p.id !== t.id &&
+          (p.type === "transfer-in" || p.type === "transfer-out") &&
+          Math.abs(p.id - t.id) <= 100 && // Nới rộng khoảng chênh lệch ID lên 100ms cho chắc chắn
+          p.amount === t.amount,
+      );
+
+      if (!partner) {
+        // Nếu không tìm thấy cặp (do lỗi dữ liệu cũ), ta coi như sửa ví nguồn/đích dựa trên cái hiện tại
+        console.warn(
+          "Không tìm thấy giao dịch đối ứng, sẽ cố gắng sửa dựa trên dữ liệu hiện có.",
+        );
+      }
+
+      // Xác định nguồn/đích
+      let sourceId = "";
+      let destId = "";
+
+      if (t.type === "transfer-out") {
+        sourceId = t.walletId;
+        destId = partner ? partner.walletId : "";
+      } else {
+        sourceId = partner ? partner.walletId : "";
+        destId = t.walletId;
+      }
+
+      // Nếu không tìm thấy partner, ta giữ nguyên ví còn lại (hoặc bắt người dùng chọn lại)
+      if (!destId || !sourceId) {
+        // Fallback: Nếu không tìm thấy cặp, lấy ví còn lại từ danh sách ví (trừ ví hiện tại)
+        // Hoặc chỉ load ví hiện tại
+      }
+
+      setTransferFromId(sourceId || wallets[0].id);
+      setTransferToId(destId || wallets[1].id);
+      setTransferAmount(t.amount.toString());
+
+      // Lấy note gốc (bỏ phần tự sinh trong ngoặc)
+      const noteMatch = t.note.match(/\((.*?)\)$/);
+      setTransferNote(noteMatch ? noteMatch[1] : "");
+
+      setView("transaction"); // Chuyển view
+    }
+    // --- LOGIC SỬA THU/CHI THƯỜNG ---
+    else {
+      setAmount(t.amount.toString());
+      setType(t.type);
+      setSelectedWalletId(t.walletId);
+      setCategory(t.category);
+      setNote(t.note || "");
+      setView("add");
+    }
   };
 
   // --- TRANSFER LOGIC ---
@@ -470,37 +623,92 @@ export const BudgetModule = () => {
   const executeTransfer = (amountNum: number) => {
     const fromWalletName = wallets.find((w) => w.id === transferFromId)?.name;
     const toWalletName = wallets.find((w) => w.id === transferToId)?.name;
-    const timeNow = Date.now();
     const dateStr = new Date().toLocaleDateString("vi-VN");
 
-    // Tạo 2 giao dịch: 1 Chi (Expense) ở ví nguồn, 1 Thu (Income) ở ví đích
-    const expenseTrans: Transaction = {
-      id: timeNow,
-      type: "expense",
-      walletId: transferFromId,
-      amount: amountNum,
-      category: "transfer", // Hoặc tạo category 'transfer' riêng
-      note: `Chuyển tiền đến ${toWalletName} ${transferNote ? `(${transferNote})` : ""}`,
-      date: dateStr,
-      rawDate: timeNow,
-    };
+    // Tạo note hiển thị
+    const noteSuffix = transferNote ? `(${transferNote})` : "";
+    const noteOut = `Chuyển tiền đến ${toWalletName} ${noteSuffix}`;
+    const noteIn = `Nhận tiền từ ${fromWalletName} ${noteSuffix}`;
 
-    const incomeTrans: Transaction = {
-      id: timeNow + 1, // ID khác nhau chút xíu
-      type: "income",
-      walletId: transferToId,
-      amount: amountNum,
-      category: "other",
-      note: `Nhận tiền từ ${fromWalletName} ${transferNote ? `(${transferNote})` : ""}`,
-      date: dateStr,
-      rawDate: timeNow,
-    };
+    // --- TRƯỜNG HỢP CẬP NHẬT (EDIT) ---
+    if (editingTransaction) {
+      // 1. Tìm thằng đối ứng (Partner) cũ để sửa luôn nó
+      const partner = transactions.find(
+        (p) =>
+          p.id !== editingTransaction.id &&
+          (p.type === "transfer-in" || p.type === "transfer-out") &&
+          Math.abs(p.id - editingTransaction.id) <= 100 && // Check ID gần nhau
+          p.amount === editingTransaction.amount, // Check số tiền cũ
+      );
 
-    setTransactions([incomeTrans, expenseTrans, ...transactions]);
+      // 2. Cập nhật danh sách
+      const updatedTransactions = transactions.map((t) => {
+        // Sửa thằng đang chọn HOẶC thằng đối ứng của nó
+        if (
+          t.id === editingTransaction.id ||
+          (partner && t.id === partner.id)
+        ) {
+          // Nếu là bản ghi CHI (Transfer Out) -> Cập nhật ví Nguồn
+          if (t.type === "transfer-out") {
+            return {
+              ...t,
+              amount: amountNum,
+              walletId: transferFromId,
+              note: noteOut,
+            };
+          }
+          // Nếu là bản ghi THU (Transfer In) -> Cập nhật ví Đích
+          if (t.type === "transfer-in") {
+            return {
+              ...t,
+              amount: amountNum,
+              walletId: transferToId,
+              note: noteIn,
+            };
+          }
+        }
+        return t; // Các giao dịch khác giữ nguyên
+      });
+
+      setTransactions(updatedTransactions);
+      showToast("Đã cập nhật giao dịch chuyển tiền!", "success");
+      setEditingTransaction(null); // Reset trạng thái ngay lập tức
+    }
+    // --- TRƯỜNG HỢP TẠO MỚI (CREATE) ---
+    else {
+      const timeNow = Date.now();
+
+      const expenseTrans: Transaction = {
+        id: timeNow,
+        type: "transfer-out",
+        walletId: transferFromId,
+        amount: amountNum,
+        category: "transfer-out",
+        note: noteOut,
+        date: dateStr,
+        rawDate: timeNow,
+      };
+
+      const incomeTrans: Transaction = {
+        id: timeNow + 1,
+        type: "transfer-in",
+        walletId: transferToId,
+        amount: amountNum,
+        category: "transfer-in",
+        note: noteIn,
+        date: dateStr,
+        rawDate: timeNow,
+      };
+
+      setTransactions([incomeTrans, expenseTrans, ...transactions]);
+      showToast("Chuyển tiền thành công!", "success");
+    }
+
+    // Reset Form & Sound chung cho cả 2 trường hợp
+    playSoundEffect(trans);
     setTransferAmount("");
     setTransferNote("");
     setView("overview");
-    showToast("Chuyển tiền thành công!", "success");
   };
 
   // Hàm hoán đổi vị trí 2 ví
@@ -706,7 +914,7 @@ export const BudgetModule = () => {
   const isValid =
     actualMoney.trim() !== "" && // Không được để trống
     !isNaN(numericValue) && // Phải là số
-    numericValue >= 0 && // Phải lớn hơn hoặc bằng 0 (Tiền thực tế không thể âm)
+    numericValue >= 1000 && // Phải lớn hơn hoặc bằng 0 (Tiền thực tế không thể âm)
     adjustWalletId !== ""; // Phải chọn ví
 
   const numericValueInit = Number(wInitial);
@@ -716,7 +924,7 @@ export const BudgetModule = () => {
     numericValueInit >= 1000; // Phải lớn hơn hoặc bằng 0 (Tiền thực tế không thể âm)
 
   return (
-    <div className="h-full flex flex-col bg-slate-950 text-slate-100 font-sans relative overflow-hidden select-none">
+    <div className="h-full flex flex-col bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 font-sans relative overflow-hidden select-none transition-colors duration-300">
       {/* --- CONFIRM MODAL (CUSTOM POPUP) --- */}
       {confirmConfig.isOpen && (
         <ConfirmModal
@@ -726,29 +934,32 @@ export const BudgetModule = () => {
       )}
 
       {/* --- DRAWER: WALLET MANAGER --- */}
-      {showWalletDrawer && (
-        <Drawer
-          setShowWalletDrawer={setShowWalletDrawer}
-          setShowAdjustModal={setShowAdjustModal}
-          setWName={setWName}
-          setWInitial={setWInitial}
-          setWType={setWType}
-          setEditingWallet={setEditingWallet}
-          walletDetails={walletDetails}
-          handleEditWalletBtn={handleEditWalletBtn}
-          handleDeleteWallet={handleDeleteWallet}
-          editingWallet={editingWallet}
-          wName={wName}
-          wType={wType}
-          wInitial={wInitial}
-          handleCancelEditWallet={handleCancelEditWallet}
-          isValidInit={isValidInit}
-          handleSaveWallet={handleSaveWallet}
-        />
-      )}
+      <AnimatePresence>
+        {showWalletDrawer && (
+          <Drawer
+            key="wallet-drawer"
+            setShowWalletDrawer={setShowWalletDrawer}
+            setShowAdjustModal={setShowAdjustModal}
+            setWName={setWName}
+            setWInitial={setWInitial}
+            setWType={setWType}
+            setEditingWallet={setEditingWallet}
+            walletDetails={walletDetails}
+            handleEditWalletBtn={handleEditWalletBtn}
+            handleDeleteWallet={handleDeleteWallet}
+            editingWallet={editingWallet}
+            wName={wName}
+            wType={wType}
+            wInitial={wInitial}
+            handleCancelEditWallet={handleCancelEditWallet}
+            isValidInit={isValidInit}
+            handleSaveWallet={handleSaveWallet}
+          />
+        )}
+      </AnimatePresence>
 
       {/* HEADER */}
-      <div className="flex-none p-4 flex items-center justify-between border-b border-white/5 bg-white/5 backdrop-blur-md z-20">
+      <div className="flex-none p-4 flex items-center justify-between border-b border-slate-200 bg-white/80 dark:border-white/5 dark:bg-white/5 backdrop-blur-md z-20 transition-colors">
         <div className="flex items-center gap-3">
           <button
             onClick={() => setShowWalletDrawer(true)}
@@ -757,50 +968,110 @@ export const BudgetModule = () => {
             <Menu size={20} />
           </button>
           <div>
-            <h2 className="font-bold text-sm leading-tight">Budget Pro</h2>
+            <h2 className="font-bold text-sm leading-tight text-slate-800 dark:text-slate-100">
+              Budget
+            </h2>
             <div
-              className="flex items-center gap-1 text-[10px] text-slate-400 pointer hover:text-white transition-colors"
+              className="flex items-center gap-1 text-[10px] text-slate-500 dark:text-slate-400 cursor-pointer hover:text-slate-800 dark:hover:text-white transition-colors"
               onClick={() => setFilter(filter === "month" ? "all" : "month")}
             >
-              <Calendar size={10} />{" "}
+              <Calendar size={10} />
               {filter === "month" ? "Tháng này" : "Tất cả"}
             </div>
           </div>
         </div>
 
         {/* Action buttons */}
-        <div className="flex items-center gap-2 bg-black/20 rounded-lg p-1 border border-white/5">
+        <div className="flex items-center gap-2 bg-slate-100 dark:bg-black/20 rounded-lg p-1 border border-slate-200 dark:border-white/5 transition-colors">
           <button
             onClick={handleClearAllData}
-            className="p-2 text-slate-500 hover:text-red-400 hover:bg-white/5 rounded-lg transition-colors"
+            className="p-2 text-slate-500 hover:text-red-500 hover:bg-slate-200 dark:hover:text-red-400 dark:hover:bg-white/5 rounded-lg transition-colors"
             title="Reset toàn bộ"
           >
             <BrushCleaning size={18} />
           </button>
-          <div className="w-[0.5px] h-6 bg-slate-600"></div>
+          <div className="w-[0.5px] h-6 bg-slate-300 dark:bg-slate-600"></div>
           <button
-            onClick={() => setView("overview")}
-            className={`p-1.5 rounded-md transition-all  ${view === "overview" ? "bg-slate-700 text-white shadow-inner" : "text-slate-500 hover:text-slate-400 hover:bg-white/5"}`}
+            onClick={() => {
+              setView("overview");
+              setAmount("");
+              setType("expense");
+              setCategory("food");
+              setNote("");
+              setTransferAmount("");
+              setTransferNote("");
+              setStmtTime("this_month");
+              setEditingTransaction(null);
+              setAmount("");
+              setNote("");
+              setEditingTransaction(null);
+            }}
+            className={`p-1.5 rounded-md transition-all  ${
+              view === "overview"
+                ? "bg-slate-200 text-slate-900 shadow-sm dark:bg-slate-700 dark:text-white dark:shadow-inner"
+                : "text-slate-500 hover:text-slate-700 hover:bg-slate-200 dark:hover:text-slate-400 dark:hover:bg-white/5"
+            }`}
           >
             <PieChart size={18} />
           </button>
           <button
-            onClick={() => setView("add")}
-            className={`p-1.5 rounded-md transition-all  ${view === "add" ? "bg-blue-600 text-white shadow-lg shadow-blue-500/30" : "text-slate-500 hover:text-blue-400 hover:bg-white/5"}`}
+            onClick={() => {
+              setView("add");
+              setTransferAmount("");
+              setTransferNote("");
+              setStmtTime("this_month");
+              setIsEditingBudget(false);
+              setEditingTransaction(null);
+            }}
+            className={`p-1.5 rounded-md transition-all  ${
+              view === "add"
+                ? "bg-blue-500 text-white shadow-lg shadow-blue-500/30 dark:bg-blue-600"
+                : "text-slate-500 hover:text-blue-500 hover:bg-slate-200 dark:hover:text-blue-400 dark:hover:bg-white/5"
+            }`}
           >
             <Plus size={18} />
           </button>
-          <div className="w-[0.5px] h-6 bg-slate-600"></div>
+          <div className="w-[0.5px] h-6 bg-slate-300 dark:bg-slate-600"></div>
           <button
-            onClick={() => setView("transaction")}
-            className={`p-1.5 rounded-md transition-all  ${view === "transaction" ? "bg-orange-600 text-white shadow-lg shadow-orage-500/30" : "text-slate-500 hover:text-orange-400 hover:bg-white/5"}`}
+            onClick={() => {
+              setView("transaction");
+              setAmount("");
+              setType("expense");
+              setCategory("food");
+              setNote("");
+              setStmtTime("this_month");
+              setIsEditingBudget(false);
+              setEditingTransaction(null);
+              setAmount("");
+              setNote("");
+              // setEditingTransaction(null);
+            }}
+            className={`p-1.5 rounded-md transition-all  ${
+              view === "transaction"
+                ? "bg-orange-500 text-white shadow-lg shadow-orange-500/30 dark:bg-orange-600"
+                : "text-slate-500 hover:text-orange-500 hover:bg-slate-200 dark:hover:text-orange-400 dark:hover:bg-white/5"
+            }`}
           >
             <Repeat size={18} />
           </button>
-          <div className="w-[0.5px] h-6 bg-slate-600"></div>
+          <div className="w-[0.5px] h-6 bg-slate-300 dark:bg-slate-600"></div>
           <button
-            onClick={() => setView("statement")}
-            className={`p-1.5 rounded-md transition-all  ${view === "statement" ? "bg-purple-600 text-white shadow-lg shadow-purple-500/30" : "text-slate-500 hover:text-purple-400 hover:bg-white/5"}`}
+            onClick={() => {
+              setView("statement");
+              setAmount("");
+              setType("expense");
+              setCategory("food");
+              setNote("");
+              setTransferAmount("");
+              setTransferNote("");
+              setIsEditingBudget(false);
+              setEditingTransaction(null);
+            }}
+            className={`p-1.5 rounded-md transition-all  ${
+              view === "statement"
+                ? "bg-purple-500 text-white shadow-lg shadow-purple-500/30 dark:bg-purple-600"
+                : "text-slate-500 hover:text-purple-500 hover:bg-slate-200 dark:hover:text-purple-400 dark:hover:bg-white/5"
+            }`}
             title="Sao kê giao dịch"
           >
             <FileText size={18} />
@@ -808,116 +1079,272 @@ export const BudgetModule = () => {
         </div>
       </div>
 
-      <div
+      <motion.div
         className={`flex-1 ${showAdjustModal ? "overflow-y-hidden" : "overflow-y-auto"} custom-scrollbar p-4 relative z-10 pb-24`}
+        variants={containerVariants}
+        initial="hidden"
+        animate="visible"
       >
         {/* ADJUST MODAL */}
-        {showAdjustModal && !showWalletDrawer && (
-          <AdjustModal
-            setShowAdjustModal={setShowAdjustModal}
-            setActualMoney={setActualMoney}
-            setAdjustWalletId={setAdjustWalletId}
-            wallets={wallets}
-            walletBalances={walletBalances}
-            adjustWalletId={adjustWalletId}
-            actualMoney={actualMoney}
-            isValid={isValid}
-            handleAdjustBalance={handleAdjustBalance}
-          />
-        )}
+        <AnimatePresence>
+          {showAdjustModal && !showWalletDrawer && (
+            <AdjustModal
+              setShowAdjustModal={setShowAdjustModal}
+              setActualMoney={setActualMoney}
+              setAdjustWalletId={setAdjustWalletId}
+              wallets={wallets}
+              walletBalances={walletBalances}
+              adjustWalletId={adjustWalletId}
+              actualMoney={actualMoney}
+              isValid={isValid}
+              handleAdjustBalance={handleAdjustBalance}
+            />
+          )}
+        </AnimatePresence>
 
-        {/* OVERVIEW VIEW */}
-        {view === "overview" && (
-          <Overview
-            isNegativeBalance={isNegativeBalance}
-            setShowAdjustModal={setShowAdjustModal}
-            totalBalance={totalBalance}
-            isEditingBudget={isEditingBudget}
-            budgetLimit={budgetLimit}
-            setBudgetLimit={setBudgetLimit}
-            setIsEditingBudget={setIsEditingBudget}
-            overviewScrollRef={overviewScrollRef}
-            walletDetails={walletDetails}
-            setShowWalletDrawer={setShowWalletDrawer}
-            spendingPercent={spendingPercent}
-            leftBudget={leftBudget}
-            chartData={chartData}
-            insight={insight}
-            renderLineChart={renderLineChart}
-            trendData={trendData}
-            renderDonut={renderDonut}
-            totalExpense={totalExpense}
-            filteredTrans={filteredTrans}
-            wallets={wallets}
-            handleDeleteTransaction={handleDeleteTransaction}
-          />
-        )}
+        <AnimatePresence mode="wait">
+          {/* OVERVIEW VIEW */}
+          {view === "overview" && (
+            <motion.div
+              key="overview"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+            >
+              <Overview
+                handleEditTransaction={handleEditTransactionBtn}
+                isNegativeBalance={isNegativeBalance}
+                setShowAdjustModal={setShowAdjustModal}
+                totalBalance={totalBalance}
+                isEditingBudget={isEditingBudget}
+                budgetLimit={budgetLimit}
+                setBudgetLimit={setBudgetLimit}
+                setIsEditingBudget={setIsEditingBudget}
+                overviewScrollRef={overviewScrollRef}
+                walletDetails={walletDetails}
+                setShowWalletDrawer={setShowWalletDrawer}
+                spendingPercent={spendingPercent}
+                leftBudget={leftBudget}
+                chartData={chartData}
+                insight={insight}
+                renderLineChart={renderLineChart}
+                trendData={trendData}
+                renderDonut={renderDonut}
+                totalExpense={totalExpense}
+                filteredTrans={filteredTrans}
+                wallets={wallets}
+                handleDeleteTransaction={handleDeleteTransaction}
+              />
+            </motion.div>
+          )}
 
-        {/* ADD VIEW */}
-        {view === "add" && (
-          <AddView
-            setType={setType}
-            type={type}
-            addViewScrollRef={addViewScrollRef}
-            wallets={wallets}
-            setSelectedWalletId={setSelectedWalletId}
-            selectedWalletId={selectedWalletId}
-            setShowWalletDrawer={setShowWalletDrawer}
-            amount={amount}
-            setAmount={setAmount}
-            category={category}
-            setCategory={setCategory}
-            note={note}
-            setNote={setNote}
-          />
-        )}
+          {/* ADD VIEW */}
+          {view === "add" && (
+            <motion.div
+              key="add"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+            >
+              <AddView
+                setType={setType}
+                type={type}
+                addViewScrollRef={addViewScrollRef}
+                wallets={wallets}
+                setSelectedWalletId={setSelectedWalletId}
+                selectedWalletId={selectedWalletId}
+                setShowWalletDrawer={setShowWalletDrawer}
+                amount={amount}
+                setAmount={setAmount}
+                category={category}
+                setCategory={setCategory}
+                note={note}
+                setNote={setNote}
+                editingTransaction={editingTransaction}
+              />
+            </motion.div>
+          )}
 
-        {/* TRANSACTION VIEW */}
-        {view === "transaction" && (
-          <TransactionView
-            wallets={wallets}
-            setShowWalletDrawer={setShowWalletDrawer}
-            transferFromRef={transferFromRef}
-            walletBalances={walletBalances}
-            transferFromId={transferFromId}
-            transferToId={transferToId}
-            setTransferFromId={setTransferFromId}
-            handleSwapWallets={handleSwapWallets}
-            transferToRef={transferToRef}
-            setTransferToId={setTransferToId}
-            transferAmount={transferAmount}
-            setTransferAmount={setTransferAmount}
-            transferNote={transferNote}
-            setTransferNote={setTransferNote}
-            handleTransfer={handleTransfer}
-          />
-        )}
+          {/* TRANSACTION VIEW */}
+          {view === "transaction" && (
+            <motion.div
+              key="transaction"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+            >
+              <TransactionView
+                wallets={wallets}
+                setShowWalletDrawer={setShowWalletDrawer}
+                transferFromRef={transferFromRef}
+                walletBalances={walletBalances}
+                transferFromId={transferFromId}
+                transferToId={transferToId}
+                setTransferFromId={setTransferFromId}
+                handleSwapWallets={handleSwapWallets}
+                transferToRef={transferToRef}
+                setTransferToId={setTransferToId}
+                transferAmount={transferAmount}
+                setTransferAmount={setTransferAmount}
+                transferNote={transferNote}
+                setTransferNote={setTransferNote}
+                handleTransfer={handleTransfer}
+              />
+            </motion.div>
+          )}
 
-        {/* VIEW: SAO KÊ (STATEMENT) */}
-        {view === "statement" && (
-          <StatementView
-            stmtWalletId={stmtWalletId}
-            setStmtWalletId={setStmtWalletId}
-            wallets={wallets}
-            setStmtTime={setStmtTime}
-            stmtTime={stmtTime}
-            statementData={statementData}
-            handleExportExcel={handleExportExcel}
-          />
-        )}
-      </div>
+          {/* VIEW: SAO KÊ (STATEMENT) */}
+          {view === "statement" && (
+            <motion.div
+              key="statement"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+            >
+              <StatementView
+                stmtWalletId={stmtWalletId}
+                setStmtWalletId={setStmtWalletId}
+                wallets={wallets}
+                setStmtTime={setStmtTime}
+                stmtTime={stmtTime}
+                statementData={statementData}
+                handleExportExcel={handleExportExcel}
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </motion.div>
 
       {/* --- FIXED BOTTOM BUTTON (Moved Outside Scrollable Area) --- */}
       {view === "add" && (
-        <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-slate-950 via-slate-950/90 to-transparent z-40">
-          <button
+        <motion.div
+          initial={{ y: 50, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ type: "spring", stiffness: 300, damping: 30 }}
+          className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-slate-50 via-slate-50/90 dark:from-slate-950 dark:via-slate-950/90 to-transparent z-40 transition-colors"
+        >
+          {/* --- PHẦN HIỂN THỊ SỐ DƯ (ĐÃ CUSTOM LẠI) --- */}
+          {editingTransaction && (
+            <div className=" bg-blue-50 text-blue-600 px-4 py-2 rounded-xl text-xs font-bold flex justify-between items-center mb-1 z-50 border border-blue-500 shadow-lg">
+              <span>Đang chỉnh sửa giao dịch</span>
+              <button
+                onClick={() => {
+                  setEditingTransaction(null);
+                  setAmount("");
+                  setNote("");
+                  // Reset về default
+                }}
+              >
+                Hủy
+              </button>
+            </div>
+          )}
+          {selectedWalletId && (
+            <div className="mb-3 animate-in slide-in-from-bottom-2 duration-300">
+              <div className="flex items-center justify-between bg-white dark:bg-white/5 backdrop-blur-md border border-slate-200 dark:border-white/10 rounded-2xl p-3 shadow-lg shadow-slate-200/50 dark:shadow-none">
+                {/* Bên trái: Tên ví */}
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500 dark:text-slate-400 shrink-0">
+                    {wallets.find((w) => w.id === selectedWalletId)?.type ===
+                      "online" && <CreditCard size={18} color="blue" />}
+                    {wallets.find((w) => w.id === selectedWalletId)?.type ===
+                      "cash" && <Banknote size={18} color="green" />}
+                    {wallets.find((w) => w.id === selectedWalletId)?.type ===
+                      "savings" && <PiggyBank size={18} color="purple" />}
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-[10px] font-bold uppercase text-slate-400 tracking-wider">
+                      Số dư hiện tại
+                    </span>
+                    <span className="text-xs font-bold text-slate-700 dark:text-slate-200">
+                      {wallets.find((w) => w.id === selectedWalletId)?.name}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Bên phải: Số tiền */}
+                <div className="text-right flex flex-col items-end gap-0">
+                  <div
+                    className={`font-mono font-black text-lg ${
+                      (walletBalances[selectedWalletId] || 0) < 0
+                        ? "text-red-500"
+                        : "text-slate-900 dark:text-white"
+                    }`}
+                  >
+                    {formatMoney(walletBalances[selectedWalletId] || 0)}
+                  </div>
+                  {amount && (
+                    <span
+                      className={`text-xs ${type === "income" ? "text-green-500" : "text-red-500"}`}
+                    >
+                      {type === "income" ? "+" : "-"}
+                      {formatMoney(parseFloat(amount) || 0)
+                        ? ` ${formatMoney(parseFloat(amount) || 0)}`
+                        : ""}
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+          <motion.button
             onClick={handleAddTransaction}
-            className={`w-full py-4 rounded-2xl font-bold text-white shadow-xl flex items-center justify-center gap-2 transition-all transform active:scale-95 ${type === "income" ? "bg-emerald-500 hover:bg-emerald-400 shadow-emerald-500/20" : "bg-red-500 hover:bg-red-400 shadow-red-500/20"}`}
+            className={`w-full py-4 rounded-2xl font-bold text-white shadow-xl flex items-center justify-center gap-2 transition-all transform active:scale-95 ${
+              type === "income"
+                ? "bg-emerald-500 hover:bg-emerald-600 shadow-emerald-500/20 dark:bg-emerald-500 dark:hover:bg-emerald-400"
+                : "bg-red-500 hover:bg-red-600 shadow-red-500/20 dark:bg-red-500 dark:hover:bg-red-400"
+            }`}
           >
-            {type === "income" ? "Lưu Thu Nhập" : "Lưu Chi Tiêu"}{" "}
+            {editingTransaction
+              ? "Cập Nhật"
+              : type === "income"
+                ? "Lưu Thu Nhập"
+                : "Lưu Chi Tiêu"}
             <ArrowRight size={20} />
-          </button>
-        </div>
+          </motion.button>
+        </motion.div>
+      )}
+      {view === "transaction" && wallets.length >= 2 && (
+        <motion.div
+          initial={{ y: 100 }}
+          animate={{ y: 0 }}
+          exit={{ y: 100 }}
+          transition={{ type: "spring", stiffness: 200, damping: 20 }}
+          className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-slate-50 via-slate-50/90 dark:from-slate-950 dark:via-slate-950/90 to-transparent z-40"
+        >
+          <motion.button
+            whileTap={{ scale: 0.95 }}
+            onClick={handleTransfer}
+            disabled={!transferAmount || !transferFromId || !transferToId}
+            className={`
+            w-full py-4 rounded-2xl font-bold text-white shadow-xl flex items-center justify-center gap-3 transition-colors
+            ${
+              !transferAmount || !transferFromId || !transferToId
+                ? "bg-slate-300 dark:bg-slate-800 text-slate-500 dark:text-slate-500 cursor-not-allowed shadow-none"
+                : "bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 shadow-blue-500/30"
+            }
+        `}
+          >
+            <div className="flex items-center gap-2">
+              <span>
+                {editingTransaction ? "Cập nhật Chuyển khoản" : "Xác nhận"}
+              </span>
+              <ArrowRight size={18} />
+            </div>
+            {transferAmount && (
+              <motion.div
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                className="flex items-center gap-2"
+              >
+                <div className="w-px h-4 bg-white/20"></div>
+                <span className="font-mono text-xs opacity-90">
+                  {formatMoney(parseFloat(transferAmount))}
+                </span>
+              </motion.div>
+            )}
+          </motion.button>
+        </motion.div>
       )}
     </div>
   );

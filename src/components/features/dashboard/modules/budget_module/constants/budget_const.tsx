@@ -143,11 +143,18 @@ export const CATEGORIES = [
     bg: "bg-slate-500/20 border-slate-500/30",
   },
   {
-    id: "transfer",
+    id: "transfer-out",
     label: "Chuyển tiền",
     icon: Repeat,
     color: "text-yellow-400",
     bg: "bg-yellow-500/20 border-yellow-500/30",
+  },
+  {
+    id: "transfer-in",
+    label: "Nhận tiền",
+    icon: Repeat,
+    color: "text-green-400",
+    bg: "bg-green-500/20 border-green-500/30",
   },
 ];
 

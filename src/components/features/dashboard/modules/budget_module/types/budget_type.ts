@@ -1,4 +1,8 @@
-export type TransactionType = "income" | "expense";
+export type TransactionType =
+  | "income"
+  | "expense"
+  | "transfer-in"
+  | "transfer-out";
 export type WalletType = "online" | "cash" | "savings";
 export type TimeFilter = "month" | "all";
 

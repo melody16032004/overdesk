@@ -65,23 +65,37 @@ export const WalletFilterSelect = ({
     <div className="relative min-w-[140px]" ref={containerRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className={`w-full flex items-center justify-between gap-2 pl-3 pr-2 py-2 bg-white/5 border border-white/10 rounded-xl text-xs font-bold text-white transition-all hover:bg-white/10 hover:border-purple-500/50 ${isOpen ? "border-purple-500 ring-2 ring-purple-500/20" : ""}`}
+        className={`
+        w-full flex items-center justify-between gap-2 pl-3 pr-2 py-2 
+        bg-white dark:bg-white/5 
+        border border-slate-200 dark:border-white/10 
+        rounded-xl text-xs font-bold 
+        text-slate-700 dark:text-white 
+        transition-all 
+        hover:bg-slate-50 dark:hover:bg-white/10 
+        hover:border-purple-500/50 
+        ${isOpen ? "border-purple-500 ring-2 ring-purple-500/20" : ""}
+    `}
       >
         <div className="flex items-center gap-2 truncate">
-          <Wallet size={14} className="text-purple-400 shrink-0" />
+          <Wallet
+            size={14}
+            className="text-purple-500 dark:text-purple-400 shrink-0"
+          />
           <span className="truncate">{selectedLabel}</span>
         </div>
         <ChevronDown
           size={14}
-          className={`text-slate-500 transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`}
+          className={`text-slate-400 dark:text-slate-500 transition-transform duration-200 ${
+            isOpen ? "rotate-180" : ""
+          }`}
         />
       </button>
 
-      {/* MENU DÙNG FIXED POSITION (Thoát khỏi overflow) */}
+      {/* MENU DÙNG FIXED POSITION */}
       {isOpen && (
-        // Dùng createPortal nếu có thể, nhưng ở đây dùng fixed trực tiếp cũng ổn cho trường hợp đơn giản
         <div
-          className="fixed z-[9999] bg-[#1e293b] border border-white/10 rounded-xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-100 max-h-60 overflow-y-auto custom-scrollbar"
+          className="fixed z-[9999] bg-white dark:bg-[#1e293b] border border-slate-200 dark:border-white/10 rounded-xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-100 max-h-60 overflow-y-auto custom-scrollbar"
           style={{
             top: menuPosition.top,
             left: menuPosition.left,
@@ -93,13 +107,19 @@ export const WalletFilterSelect = ({
               onChange("all");
               setIsOpen(false);
             }}
-            className={`w-full flex items-center justify-between px-3 py-2.5 text-xs text-left transition-colors ${value === "all" ? "bg-purple-600/20 text-purple-400" : "text-slate-300 hover:bg-white/5 hover:text-white"}`}
+            className={`w-full flex items-center justify-between px-3 py-2.5 text-xs text-left transition-colors 
+            ${
+              value === "all"
+                ? "bg-purple-50 text-purple-600 dark:bg-purple-600/20 dark:text-purple-400"
+                : "text-slate-600 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-white/5 dark:hover:text-white"
+            }
+        `}
           >
             <span>Tất cả ví</span>
             {value === "all" && <Check size={12} />}
           </button>
 
-          <div className="h-px bg-white/5 mx-2 my-1"></div>
+          <div className="h-px bg-slate-100 dark:bg-white/5 mx-2 my-1"></div>
 
           {wallets.map((w) => (
             <button
@@ -108,11 +128,20 @@ export const WalletFilterSelect = ({
                 onChange(w.id);
                 setIsOpen(false);
               }}
-              className={`w-full flex items-center justify-between px-3 py-2.5 text-xs text-left transition-colors ${value === w.id ? "bg-purple-600/20 text-purple-400" : "text-slate-300 hover:bg-white/5 hover:text-white"}`}
+              className={`w-full flex items-center justify-between px-3 py-2.5 text-xs text-left transition-colors 
+              ${
+                value === w.id
+                  ? "bg-purple-50 text-purple-600 dark:bg-purple-600/20 dark:text-purple-400"
+                  : "text-slate-600 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-white/5 dark:hover:text-white"
+              }
+          `}
             >
               <div className="flex items-center gap-2 truncate">
                 <div
-                  className={`w-1.5 h-1.5 rounded-full ${w.color.replace("text-", "bg-")}`}
+                  className={`w-1.5 h-1.5 rounded-full ${w.color.replace(
+                    "text-",
+                    "bg-",
+                  )}`}
                 ></div>
                 <span className="truncate">{w.name}</span>
               </div>

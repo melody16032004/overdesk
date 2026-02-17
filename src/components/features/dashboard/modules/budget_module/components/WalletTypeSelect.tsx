@@ -32,21 +32,33 @@ export const WalletTypeSelect = ({
   return (
     <div className="relative flex-1" ref={containerRef}>
       <button
+        type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-xs flex items-center justify-between hover:bg-white/10 transition-colors"
+        className={`
+        w-full flex items-center justify-between 
+        px-3 py-2 rounded-lg text-xs transition-colors border
+        bg-slate-50 dark:bg-white/5 
+        border-slate-200 dark:border-white/10 
+        hover:bg-slate-100 dark:hover:bg-white/10
+    `}
       >
         <div className="flex items-center gap-2">
+          {/* Icon giữ nguyên class màu từ props, thường các màu này hiển thị tốt trên cả 2 nền */}
           <selected.icon size={14} className={selected.color} />
-          <span className="text-white">{selected.label}</span>
+          <span className="text-slate-700 dark:text-white font-medium">
+            {selected.label}
+          </span>
         </div>
         <ChevronDown
           size={14}
-          className={`text-slate-500 transition-transform ${isOpen ? "rotate-180" : ""}`}
+          className={`text-slate-400 dark:text-slate-500 transition-transform duration-200 ${
+            isOpen ? "rotate-180" : ""
+          }`}
         />
       </button>
 
       {isOpen && (
-        <div className="absolute bottom-full left-0 right-0 mb-1 bg-[#1e293b] border border-white/10 rounded-lg shadow-xl z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-100">
+        <div className="absolute bottom-full left-0 right-0 mb-1 bg-white dark:bg-[#1e293b] border border-slate-200 dark:border-white/10 rounded-lg shadow-xl z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-100">
           {WALLET_TYPES.map((type) => (
             <button
               key={type.value}
@@ -54,12 +66,19 @@ export const WalletTypeSelect = ({
                 onChange(type.value as WalletType);
                 setIsOpen(false);
               }}
-              className="w-full flex items-center gap-2 px-3 py-2 text-xs hover:bg-white/5 text-slate-300 hover:text-white text-left"
+              className={`
+              w-full flex items-center gap-2 px-3 py-2 text-xs text-left transition-colors
+              text-slate-600 hover:text-slate-900 hover:bg-slate-50
+              dark:text-slate-300 dark:hover:text-white dark:hover:bg-white/5
+          `}
             >
               <type.icon size={14} className={type.color} />
               <span className="flex-1">{type.label}</span>
               {value === type.value && (
-                <Check size={12} className="text-emerald-400" />
+                <Check
+                  size={12}
+                  className="text-emerald-600 dark:text-emerald-400"
+                />
               )}
             </button>
           ))}
