@@ -87,6 +87,8 @@ import {
   Telescope,
   Star,
   ScreenShare,
+  Mail,
+  // Tv,
 } from "lucide-react";
 import { DashboardApp } from "../../../../types/dashboard";
 
@@ -197,6 +199,14 @@ export const INITIAL_APPS: DashboardApp[] = [
     color:
       "text-blue-600 bg-blue-500/10 border-blue-200 dark:border-blue-500/20",
     desc: "Events & Schedule",
+  },
+  {
+    id: "email",
+    label: "Email",
+    icon: Mail,
+    color:
+      "text-blue-600 bg-blue-500/10 border-blue-200 dark:border-blue-500/20",
+    desc: "Inbox & Messages",
   },
   {
     id: "markdown",
@@ -771,6 +781,14 @@ export const INITIAL_APPS: DashboardApp[] = [
       "text-violet-500 bg-violet-500/10 border-violet-200 dark:border-violet-500/20",
     desc: "Knowledge Base",
   },
+  // {
+  //   id: "movie",
+  //   label: "Movie",
+  //   icon: Tv,
+  //   color:
+  //     "text-violet-500 bg-violet-500/10 border-violet-200 dark:border-violet-500/20",
+  //   desc: "Movie Theater",
+  // },
 
   // --- GROUP 9: GAMES & FUN (Màu Red/Rose - Đỏ/Hồng đậm) ---
   {

@@ -1,7 +1,7 @@
 import { X, RefreshCw } from "lucide-react";
 import { formatMoney } from "../helpers/budget_help";
 // 1. Import Framer Motion
-import { motion, AnimatePresence, Variants } from "framer-motion";
+import { motion, Variants } from "framer-motion";
 
 // 2. Định nghĩa Variants
 const backdropVariants: Variants = {
